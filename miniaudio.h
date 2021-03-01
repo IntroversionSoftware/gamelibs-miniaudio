@@ -13479,7 +13479,7 @@ MA_API ma_result ma_log_init(const ma_allocation_callbacks* pAllocationCallbacks
     #endif
 
     /* If we're using debug output, enable it. */
-    #if defined(MA_DEBUG_OUTPUT)
+    #if defined(MA_DEBUG_OUTPUT) && 0
     {
         ma_log_register_callback(pLog, ma_log_callback_init(ma_log_callback_debug, NULL)); /* Doesn't really matter if this fails. */
     }
