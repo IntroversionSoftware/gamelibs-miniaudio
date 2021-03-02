@@ -3315,7 +3315,7 @@ MA_API ma_node_graph* ma_node_get_node_graph(const ma_node* pNode)
 
 MA_API ma_uint32 ma_node_get_input_bus_count(const ma_node* pNode)
 {
-    if (pNode == NULL) {
+    if (pNode == NULL || (((ma_node_base *)pNode)->vtable == NULL)) {
         return 0;
     }
 
@@ -3324,7 +3324,7 @@ MA_API ma_uint32 ma_node_get_input_bus_count(const ma_node* pNode)
 
 MA_API ma_uint32 ma_node_get_output_bus_count(const ma_node* pNode)
 {
-    if (pNode == NULL) {
+    if (pNode == NULL || (((ma_node_base *)pNode)->vtable == NULL)) {
         return 0;
     }
 
