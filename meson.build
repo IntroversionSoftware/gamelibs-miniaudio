@@ -1,7 +1,10 @@
 project('miniaudio', 'c', version: '0.10.32')
 
 compiler = meson.get_compiler('c')
-link_deps = []
+link_deps = [
+    dependency('ogg'),
+    dependency('vorbis'),
+]
 
 incdirs = ['.', 'research']
 
