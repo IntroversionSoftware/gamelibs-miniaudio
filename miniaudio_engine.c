@@ -3,6 +3,10 @@
 #define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
 #endif
 
+#ifdef __APPLE__
+#define MA_NO_RUNTIME_LINKING
+#endif
+
 #define MA_NO_MP3
 #define MA_NO_FLAC
 #define MA_NO_CUSTOM
