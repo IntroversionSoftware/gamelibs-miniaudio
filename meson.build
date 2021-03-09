@@ -1,6 +1,10 @@
 project('miniaudio', 'c', version: '0.10.32')
 
 compiler = meson.get_compiler('c')
+c_flags = [
+    '-D_GNU_SOURCE',
+    '-Werror=undef',
+]
 link_deps = [
     dependency('ogg'),
     dependency('vorbis'),
@@ -17,6 +21,7 @@ incdirs = include_directories(incdirs)
 lib = static_library(
     'miniaudio',
     sources,
+    c_args: c_flags,
     include_directories: incdirs,
     dependencies: link_deps,
 )
