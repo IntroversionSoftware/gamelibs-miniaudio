@@ -13,6 +13,10 @@
 #define MA_NO_ENCODING
 #define MA_PREFER_AVX2
 
+#define USE_OGGVORBIS
+
+#if defined(USE_OGGVORBIS)
+
 #include "miniaudio.h"
 #include "miniaudio_vorbis.h"
 
@@ -21,3 +25,17 @@
 #include "miniaudio_engine.h"
 
 #include "miniaudio_vorbis.h"
+
+#else
+
+#define STB_VORBIS_HEADER_ONLY
+#include "extras/stb_vorbis.c"
+
+#define MINIAUDIO_IMPLEMENTATION
+#include "miniaudio.h"
+#include "miniaudio_engine.h"
+
+#undef STB_VORBIS_HEADER_ONLY
+#include "extras/stb_vorbis.c"
+
+#endif
