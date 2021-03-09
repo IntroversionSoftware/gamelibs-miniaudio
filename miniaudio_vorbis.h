@@ -22,6 +22,10 @@
 #error "include miniaudio.h without implementation first"
 #endif
 
+#ifdef _MSC_VER
+#pragma warning (disable: 4244 4267)
+#endif
+
 #ifndef MA_HAS_VORBIS
 #define MA_HAS_VORBIS
 #endif
@@ -65,7 +69,7 @@ static ma_uint64 ma_decoder_internal_on_read_pcm_frames__vorbis(ma_decoder* pDec
     int section = 0;
     long totalFramesRead = 0;
     int channels = pDecoder->internalChannels;
-    int framesLeft = (int)frameCount;
+    long framesLeft = frameCount;
 
     /* Keep reading until we read the desired frames amount. */
     while(framesLeft > 0) {
@@ -109,25 +113,20 @@ static int ma_vorbis_ov_seek__internal(void* param, ogg_int64_t offset, int when
     ma_decoder* pDecoder = (ma_decoder*)param;
     MA_ASSERT(pDecoder != NULL);
     ma_seek_origin origin = (whence == SEEK_CUR) ? ma_seek_origin_current : ma_seek_origin_start;
-    return ma_decoder_seek_bytes(pDecoder, (int)offset, origin);
-}
-
-static int ma_vorbis_ov_close__internal(void* param)
-{
-    return 0;
+    return ma_decoder_seek_bytes(pDecoder, offset, origin);
 }
 
 static long ma_vorbis_ov_tell__internal(void* param)
 {
     ma_decoder* pDecoder = (ma_decoder*)param;
     MA_ASSERT(pDecoder != NULL);
-    return (long)pDecoder->readPointerInBytes;
+    return pDecoder->readPointerInBytes;
 }
 
 static ov_callbacks ma_vorbis_ov_decoder_callbacks = {
     ma_vorbis_ov_read__internal,
     ma_vorbis_ov_seek__internal,
-    ma_vorbis_ov_close__internal,
+    NULL,
     ma_vorbis_ov_tell__internal
 };
 
