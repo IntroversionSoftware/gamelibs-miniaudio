@@ -201,6 +201,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\miniaudio.h" />
+    <ClInclude Include="..\..\miniaudio_vorbis.h" />
     <ClInclude Include="..\..\research\miniaudio_engine.h" />
   </ItemGroup>
   <ItemGroup>
