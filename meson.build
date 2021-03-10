@@ -3,12 +3,19 @@ project('miniaudio', 'c', version: '0.10.32')
 compiler = meson.get_compiler('c')
 c_flags = [
     '-D_GNU_SOURCE',
-    '-Werror=undef',
 ]
 link_deps = [
     dependency('ogg'),
     dependency('vorbis'),
 ]
+os_deps = []
+if target_machine.system() == 'darwin'
+    os_deps += [
+        dependency('AudioToolbox'),
+        dependency('CoreAudio'),
+        dependency('CoreFoundation'),
+    ]
+endif
 
 incdirs = ['.', 'research']
 
@@ -23,12 +30,12 @@ lib = static_library(
     sources,
     c_args: c_flags,
     include_directories: incdirs,
-    dependencies: link_deps,
+    dependencies: link_deps + os_deps,
 )
 
 miniaudio_dep = declare_dependency(
     include_directories: incdirs,
-    dependencies: link_deps,
+    dependencies: link_deps + os_deps,
     link_with: lib,
     version: meson.project_version()
 )
