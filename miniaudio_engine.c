@@ -15,6 +15,8 @@
 
 #define USE_OGGVORBIS
 
+#include "extras/speex_resampler/ma_speex_resampler.h"
+
 #if defined(USE_OGGVORBIS)
 
 #include "miniaudio.h"
@@ -39,3 +41,6 @@
 #include "extras/stb_vorbis.c"
 
 #endif
+
+#define MINIAUDIO_SPEEX_RESAMPLER_IMPLEMENTATION
+#include "extras/speex_resampler/ma_speex_resampler.h"
