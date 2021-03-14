@@ -12,6 +12,7 @@
 #define MA_NO_CUSTOM
 #define MA_NO_ENCODING
 #define MA_PREFER_AVX2
+#define MA_MAX_CHANNELS 8
 
 #define USE_OGGVORBIS
 
