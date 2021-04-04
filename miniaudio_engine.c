@@ -1,5 +1,4 @@
 #ifdef _DEBUG
-#define MA_DEBUG_OUTPUT
 #define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
 #endif
 
