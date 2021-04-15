@@ -13,7 +13,9 @@
 #define MA_PREFER_AVX2
 #define MA_MAX_CHANNELS 8
 
-#define USE_OGGVORBIS
+#if !defined(USE_STB_VORBIS) && !defined(USE_OGGVORBIS)
+#define USE_STB_VORBIS
+#endif
 
 #include "extras/speex_resampler/ma_speex_resampler.h"
 
@@ -28,7 +30,7 @@
 
 #include "miniaudio_vorbis.h"
 
-#else
+#elif defined(USE_STB_VORBIS)
 
 #define STB_VORBIS_HEADER_ONLY
 #include "extras/stb_vorbis.c"
@@ -40,6 +42,8 @@
 #undef STB_VORBIS_HEADER_ONLY
 #include "extras/stb_vorbis.c"
 
+#else
+#error "Select an ogg/vorbis decoder implementation!"
 #endif
 
 #define MINIAUDIO_SPEEX_RESAMPLER_IMPLEMENTATION
