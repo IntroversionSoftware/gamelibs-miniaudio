@@ -4,10 +4,7 @@ compiler = meson.get_compiler('c')
 c_flags = [
     '-D_GNU_SOURCE',
 ]
-link_deps = [
-    dependency('ogg'),
-    dependency('vorbis'),
-]
+link_deps = []
 os_deps = []
 if target_machine.system() == 'darwin'
     os_deps += [
@@ -15,6 +12,17 @@ if target_machine.system() == 'darwin'
         dependency('CoreAudio'),
         dependency('CoreFoundation'),
     ]
+endif
+
+vorbis_decoder = get_option('vorbis')
+if vorbis_decoder == 'libvorbis'
+    c_flags += ['-DUSE_OGGVORBIS']
+    link_deps = [
+        dependency('ogg'),
+        dependency('vorbis'),
+    ]
+elif vorbis_decoder == 'stb'
+    c_flags += ['-DUSE_STB_VORBIS']
 endif
 
 incdirs = ['.', 'research']
