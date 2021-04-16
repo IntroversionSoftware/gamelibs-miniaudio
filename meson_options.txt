@@ -1,0 +1,5 @@
+option('vorbis',
+    type: 'combo',
+	choices: ['libvorbis', 'stb'],
+	value: 'libvorbis',
+	description: 'ogg/vorbis decoder')
