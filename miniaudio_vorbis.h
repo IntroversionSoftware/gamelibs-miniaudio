@@ -94,9 +94,7 @@ static ma_uint64 ma_decoder_internal_on_read_pcm_frames__vorbis(ma_decoder* pDec
 
 static ma_uint64 ma_decoder_internal_on_get_length_in_pcm_frames__vorbis(ma_decoder* pDecoder)
 {
-    MA_ASSERT(pDecoder != NULL);
-    OggVorbis_File* pVorbis = (OggVorbis_File*)pDecoder->pInternalDecoder;
-    return ov_pcm_total(pVorbis, -1);
+    return 0;
 }
 
 static size_t ma_vorbis_ov_read__internal(void *ptr, size_t size, size_t nmemb, void* param)
