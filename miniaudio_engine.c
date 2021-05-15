@@ -1,17 +1,14 @@
-#ifdef _DEBUG
-#define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
-#endif
-
 #ifdef __APPLE__
 #define MA_NO_RUNTIME_LINKING
 #endif
+
+#define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
 
 #define MA_NO_MP3
 #define MA_NO_FLAC
 #define MA_NO_CUSTOM
 #define MA_NO_ENCODING
 #define MA_PREFER_AVX2
-#define MA_MAX_CHANNELS 8
 
 #if !defined(USE_STB_VORBIS) && !defined(USE_OGGVORBIS)
 #define USE_STB_VORBIS
