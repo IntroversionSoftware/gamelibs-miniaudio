@@ -2015,6 +2015,31 @@ MA_API ma_result ma_gainer_process_pcm_frames(ma_gainer* pGainer, void* pFramesO
         }
     } else {
         /* Slow path. Need to interpolate the gain for each channel individually. */
+
+        /* We can allow the input and output buffers to be null in which case we'll just update the internal timer. */
+        if (pFramesOut != NULL && pFramesIn != NULL) {
+            float a = (float)pGainer->t / pGainer->config.smoothTimeInFrames;
+            float d = 1.0f / pGainer->config.smoothTimeInFrames;
+            ma_uint32 channelCount = pGainer->config.channels;
+
+            for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
+                for (iChannel = 0; iChannel < channelCount; iChannel += 1) {
+                    pFramesOutF32[iChannel] = pFramesInF32[iChannel] * ma_mix_f32_fast(pGainer->oldGains[iChannel], pGainer->newGains[iChannel], a);
+                }
+
+                pFramesOutF32 += channelCount;
+                pFramesInF32  += channelCount;
+
+                a += d;
+                if (a > 1) {
+                    a = 1;
+                }
+            }   
+        }
+
+        pGainer->t = (ma_uint32)ma_min(pGainer->t + frameCount, pGainer->config.smoothTimeInFrames);
+
+    #if 0   /* Reference implementation. */
         for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
             /* We can allow the input and output buffers to be null in which case we'll just update the internal timer. */
             if (pFramesOut != NULL && pFramesIn != NULL) {
@@ -2026,6 +2051,7 @@ MA_API ma_result ma_gainer_process_pcm_frames(ma_gainer* pGainer, void* pFramesO
             /* Move interpolation time forward, but don't go beyond our smoothing time. */
             pGainer->t = ma_min(pGainer->t + 1, pGainer->config.smoothTimeInFrames);
         }
+    #endif
     }
 
     return MA_SUCCESS;
