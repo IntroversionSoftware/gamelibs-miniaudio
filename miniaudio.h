@@ -8789,28 +8789,28 @@ typedef unsigned char           c89atomic_bool;
         static C89ATOMIC_INLINE c89atomic_uint8 c89atomic_load_explicit_8(volatile const c89atomic_uint8* ptr, c89atomic_memory_order order)
         {
             (void)order;
-            return c89atomic_compare_and_swap_8((c89atomic_uint8*)ptr, 0, 0);
+            return c89atomic_compare_and_swap_8((volatile c89atomic_uint8*)ptr, 0, 0);
         }
     #endif
     #if defined(C89ATOMIC_HAS_16)
         static C89ATOMIC_INLINE c89atomic_uint16 c89atomic_load_explicit_16(volatile const c89atomic_uint16* ptr, c89atomic_memory_order order)
         {
             (void)order;
-            return c89atomic_compare_and_swap_16((c89atomic_uint16*)ptr, 0, 0);
+            return c89atomic_compare_and_swap_16((volatile c89atomic_uint16*)ptr, 0, 0);
         }
     #endif
     #if defined(C89ATOMIC_HAS_32)
         static C89ATOMIC_INLINE c89atomic_uint32 c89atomic_load_explicit_32(volatile const c89atomic_uint32* ptr, c89atomic_memory_order order)
         {
             (void)order;
-            return c89atomic_compare_and_swap_32((c89atomic_uint32*)ptr, 0, 0);
+            return c89atomic_compare_and_swap_32((volatile c89atomic_uint32*)ptr, 0, 0);
         }
     #endif
     #if defined(C89ATOMIC_HAS_64)
         static C89ATOMIC_INLINE c89atomic_uint64 c89atomic_load_explicit_64(volatile const c89atomic_uint64* ptr, c89atomic_memory_order order)
         {
             (void)order;
-            return c89atomic_compare_and_swap_64((c89atomic_uint64*)ptr, 0, 0);
+            return c89atomic_compare_and_swap_64((volatile c89atomic_uint64*)ptr, 0, 0);
         }
     #endif
     #if defined(C89ATOMIC_HAS_8)
@@ -9708,7 +9708,7 @@ typedef unsigned char           c89atomic_bool;
         }
     #endif
     #if defined(C89ATOMIC_HAS_64)
-        c89atomic_bool c89atomic_compare_exchange_strong_explicit_64(volatile c89atomic_uint64* dst, c89atomic_uint64* expected, c89atomic_uint64 desired, c89atomic_memory_order successOrder, c89atomic_memory_order failureOrder)
+        c89atomic_bool c89atomic_compare_exchange_strong_explicit_64(volatile c89atomic_uint64* dst, volatile c89atomic_uint64* expected, c89atomic_uint64 desired, c89atomic_memory_order successOrder, c89atomic_memory_order failureOrder)
         {
             c89atomic_uint64 expectedValue;
             c89atomic_uint64 result;
@@ -9776,7 +9776,7 @@ typedef unsigned char           c89atomic_bool;
     {
         return (void*)c89atomic_exchange_explicit_64((volatile c89atomic_uint64*)dst, (c89atomic_uint64)src, order);
     }
-    static C89ATOMIC_INLINE c89atomic_bool c89atomic_compare_exchange_strong_explicit_ptr(volatile void** dst, void** expected, void* desired, c89atomic_memory_order successOrder, c89atomic_memory_order failureOrder)
+    static C89ATOMIC_INLINE c89atomic_bool c89atomic_compare_exchange_strong_explicit_ptr(volatile void** dst, volatile void** expected, void* desired, c89atomic_memory_order successOrder, c89atomic_memory_order failureOrder)
     {
         return c89atomic_compare_exchange_strong_explicit_64((volatile c89atomic_uint64*)dst, (c89atomic_uint64*)expected, (c89atomic_uint64)desired, successOrder, failureOrder);
     }
@@ -9825,8 +9825,8 @@ typedef unsigned char           c89atomic_bool;
 #define c89atomic_store_ptr(dst, src)                                   c89atomic_store_explicit_ptr((volatile void**)dst, (void*)src, c89atomic_memory_order_seq_cst)
 #define c89atomic_load_ptr(ptr)                                         c89atomic_load_explicit_ptr((volatile void**)ptr, c89atomic_memory_order_seq_cst)
 #define c89atomic_exchange_ptr(dst, src)                                c89atomic_exchange_explicit_ptr((volatile void**)dst, (void*)src, c89atomic_memory_order_seq_cst)
-#define c89atomic_compare_exchange_strong_ptr(dst, expected, desired)   c89atomic_compare_exchange_strong_explicit_ptr((volatile void**)dst, (void*)expected, (void*)desired, c89atomic_memory_order_seq_cst, c89atomic_memory_order_seq_cst)
-#define c89atomic_compare_exchange_weak_ptr(dst, expected, desired)     c89atomic_compare_exchange_weak_explicit_ptr((volatile void**)dst, (void*)expected, (void*)desired, c89atomic_memory_order_seq_cst, c89atomic_memory_order_seq_cst)
+#define c89atomic_compare_exchange_strong_ptr(dst, expected, desired)   c89atomic_compare_exchange_strong_explicit_ptr((volatile void**)dst, (volatile void**)expected, (void*)desired, c89atomic_memory_order_seq_cst, c89atomic_memory_order_seq_cst)
+#define c89atomic_compare_exchange_weak_ptr(dst, expected, desired)     c89atomic_compare_exchange_weak_explicit_ptr((volatile void**)dst, (volatile void**)expected, (void*)desired, c89atomic_memory_order_seq_cst, c89atomic_memory_order_seq_cst)
 #define c89atomic_test_and_set_8( ptr)                                  c89atomic_test_and_set_explicit_8( ptr, c89atomic_memory_order_seq_cst)
 #define c89atomic_test_and_set_16(ptr)                                  c89atomic_test_and_set_explicit_16(ptr, c89atomic_memory_order_seq_cst)
 #define c89atomic_test_and_set_32(ptr)                                  c89atomic_test_and_set_explicit_32(ptr, c89atomic_memory_order_seq_cst)
@@ -9989,7 +9989,7 @@ static C89ATOMIC_INLINE void c89atomic_store_explicit_f32(volatile float* dst, f
     x.f = src;
     c89atomic_store_explicit_32((volatile c89atomic_uint32*)dst, x.i, order);
 }
-static C89ATOMIC_INLINE void c89atomic_store_explicit_f64(volatile float* dst, float src, c89atomic_memory_order order)
+static C89ATOMIC_INLINE void c89atomic_store_explicit_f64(volatile double* dst, double src, c89atomic_memory_order order)
 {
     c89atomic_if64 x;
     x.f = src;
@@ -43217,7 +43217,7 @@ static ma_result ma_data_source_resolve_current(ma_data_source* pDataSource, ma_
             pCurrentDataSource = (ma_data_source_base*)pDataSource; /* Not being used in a chain. Make sure we just always read from the data source itself at all times. */
         }
     } else {
-        pCurrentDataSource = pCurrentDataSource->pCurrent;
+        pCurrentDataSource = (ma_data_source_base*)pCurrentDataSource->pCurrent;
     }
 
     *ppCurrentDataSource = pCurrentDataSource;
@@ -43279,6 +43279,7 @@ MA_API ma_result ma_data_source_read_pcm_frames(ma_data_source* pDataSource, voi
     ma_uint64 totalFramesProcessed = 0;
     ma_format format;
     ma_uint32 channels;
+    ma_uint32 emptyLoopCounter = 0; /* Keeps track of how many times 0 frames have been read. For infinite loop detection of sounds with no audio data. */
 
     if (pFramesRead != NULL) {
         *pFramesRead = 0;
@@ -43343,6 +43344,15 @@ MA_API ma_result ma_data_source_read_pcm_frames(ma_data_source* pDataSource, voi
             if so, switch to it.
             */
             if (loop) {
+                if (framesProcessed == 0) {
+                    emptyLoopCounter += 1;
+                    if (emptyLoopCounter > 1) {
+                        break;  /* Infinite loop detected. Get out. */
+                    }
+                } else {
+                    emptyLoopCounter = 0;
+                }
+
                 if (ma_data_source_seek_to_pcm_frame(pCurrentDataSource, 0) != MA_SUCCESS) {
                     break;  /* Failed to loop. Abort. */
                 }
