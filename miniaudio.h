@@ -43961,13 +43961,14 @@ MA_API ma_data_source_get_next_proc ma_data_source_get_next_callback(ma_data_sou
 
 static ma_result ma_audio_buffer_ref__data_source_on_read(ma_data_source* pDataSource, void* pFramesOut, ma_uint64 frameCount, ma_uint64* pFramesRead)
 {
-    ma_uint64 framesRead = ma_audio_buffer_ref_read_pcm_frames((ma_audio_buffer_ref*)pDataSource, pFramesOut, frameCount, MA_FALSE);
+    ma_audio_buffer_ref* pAudioBufferRef = (ma_audio_buffer_ref*)pDataSource;
+    ma_uint64 framesRead = ma_audio_buffer_ref_read_pcm_frames(pAudioBufferRef, pFramesOut, frameCount, MA_FALSE);
 
     if (pFramesRead != NULL) {
         *pFramesRead = framesRead;
     }
 
-    if (framesRead < frameCount) {
+    if (framesRead < frameCount || (framesRead == frameCount && pAudioBufferRef->cursor == pAudioBufferRef->sizeInFrames)) {
         return MA_AT_END;
     }
 
@@ -45374,7 +45375,7 @@ extern "C" {
 #define DRWAV_XSTRINGIFY(x)     DRWAV_STRINGIFY(x)
 #define DRWAV_VERSION_MAJOR     0
 #define DRWAV_VERSION_MINOR     12
-#define DRWAV_VERSION_REVISION  19
+#define DRWAV_VERSION_REVISION  20
 #define DRWAV_VERSION_STRING    DRWAV_XSTRINGIFY(DRWAV_VERSION_MAJOR) "." DRWAV_XSTRINGIFY(DRWAV_VERSION_MINOR) "." DRWAV_XSTRINGIFY(DRWAV_VERSION_REVISION)
 #include <stddef.h>
 typedef   signed char           drwav_int8;
@@ -48127,7 +48128,10 @@ MA_API ma_result ma_decoder_init_vfs(ma_vfs* pVFS, const char* pFilePath, const 
     }
 
     if (result != MA_SUCCESS) {
-        ma_vfs_or_default_close(pVFS, pDecoder->backend.vfs.file);
+        if (pDecoder->backend.vfs.file != NULL) {   /* <-- Will be reset to NULL if ma_decoder_uninit() is called in one of the steps above which allows us to avoid a double close of the file. */
+            ma_vfs_or_default_close(pVFS, pDecoder->backend.vfs.file);
+        }
+
         return result;
     }
 
@@ -48528,6 +48532,7 @@ MA_API ma_result ma_decoder_uninit(ma_decoder* pDecoder)
 
     if (pDecoder->onRead == ma_decoder__on_read_vfs) {
         ma_vfs_or_default_close(pDecoder->backend.vfs.pVFS, pDecoder->backend.vfs.file);
+        pDecoder->backend.vfs.file = NULL;
     }
 
     ma_data_converter_uninit(&pDecoder->converter);
@@ -53735,15 +53740,15 @@ DRWAV_API void drwav_free(void* p, const drwav_allocation_callbacks* pAllocation
 }
 DRWAV_API drwav_uint16 drwav_bytes_to_u16(const drwav_uint8* data)
 {
-    return (data[0] << 0) | (data[1] << 8);
+    return ((drwav_uint16)data[0] << 0) | ((drwav_uint16)data[1] << 8);
 }
 DRWAV_API drwav_int16 drwav_bytes_to_s16(const drwav_uint8* data)
 {
-    return (short)drwav_bytes_to_u16(data);
+    return (drwav_int16)drwav_bytes_to_u16(data);
 }
 DRWAV_API drwav_uint32 drwav_bytes_to_u32(const drwav_uint8* data)
 {
-    return (data[0] << 0) | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+    return ((drwav_uint32)data[0] << 0) | ((drwav_uint32)data[1] << 8) | ((drwav_uint32)data[2] << 16) | ((drwav_uint32)data[3] << 24);
 }
 DRWAV_API drwav_int32 drwav_bytes_to_s32(const drwav_uint8* data)
 {
