@@ -1367,7 +1367,7 @@ struct ma_resource_manager_data_buffer
     ma_uint32 flags;                                /* The flags that were passed used to initialize the buffer. */
     ma_uint32 executionCounter;                     /* For allocating execution orders for jobs. */
     ma_uint32 executionPointer;                     /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
-    ma_uint64 cursorInPCMFrames;                    /* Only updated by the public API. Never written nor read from the job thread. */
+    ma_uint64 seekTargetInPCMFrames;                /* Only updated by the public API. Never written nor read from the job thread. */
     ma_bool32 seekToCursorOnNextRead;               /* On the next read we need to seek to the frame cursor. */
     MA_ATOMIC ma_result result;                     /* Keeps track of a result of decoding. Set to MA_BUSY while the buffer is still loading. Set to MA_SUCCESS when loading is finished successfully. Otherwise set to some other code. */
     MA_ATOMIC ma_bool32 isLooping;                  /* Can be read and written by different threads at the same time. Must be used atomically. */
@@ -1869,6 +1869,7 @@ MA_API void ma_engine_uninit(ma_engine* pEngine);
 MA_API void ma_engine_data_callback(ma_engine* pEngine, void* pOutput, const void* pInput, ma_uint32 frameCount);
 MA_API ma_node* ma_engine_get_endpoint(ma_engine* pEngine);
 MA_API ma_uint64 ma_engine_get_time(const ma_engine* pEngine);
+MA_API ma_uint64 ma_engine_set_time(ma_engine* pEngine, ma_uint64 globalTime);
 MA_API ma_uint32 ma_engine_get_channels(const ma_engine* pEngine);
 MA_API ma_uint32 ma_engine_get_sample_rate(const ma_engine* pEngine);
 
@@ -2086,6 +2087,7 @@ MA_API ma_result ma_paged_audio_buffer_data_get_length_in_pcm_frames(ma_paged_au
 MA_API ma_result ma_paged_audio_buffer_data_allocate_page(ma_paged_audio_buffer_data* pData, ma_uint64 pageSizeInFrames, const void* pInitialData, const ma_allocation_callbacks* pAllocationCallbacks, ma_paged_audio_buffer_page** ppPage)
 {
     ma_paged_audio_buffer_page* pPage;
+    ma_uint64 allocationSize;
 
     if (ppPage == NULL) {
         return MA_INVALID_ARGS;
@@ -2097,7 +2099,12 @@ MA_API ma_result ma_paged_audio_buffer_data_allocate_page(ma_paged_audio_buffer_
         return MA_INVALID_ARGS;
     }
 
-    pPage = (ma_paged_audio_buffer_page*)ma_malloc(sizeof(*pPage) + (pageSizeInFrames * ma_get_bytes_per_frame(pData->format, pData->channels)), pAllocationCallbacks);
+    allocationSize = sizeof(*pPage) + (pageSizeInFrames * ma_get_bytes_per_frame(pData->format, pData->channels));
+    if (allocationSize > MA_SIZE_MAX) {
+        return MA_OUT_OF_MEMORY;    /* Too big. */
+    }
+
+    pPage = (ma_paged_audio_buffer_page*)ma_malloc((size_t)allocationSize, pAllocationCallbacks);	/* Safe cast to size_t. */
     if (pPage == NULL) {
         return MA_OUT_OF_MEMORY;
     }
@@ -7422,7 +7429,7 @@ MA_API ma_result ma_resource_manager_data_buffer_uninit(ma_resource_manager_data
 MA_API ma_result ma_resource_manager_data_buffer_read_pcm_frames(ma_resource_manager_data_buffer* pDataBuffer, void* pFramesOut, ma_uint64 frameCount, ma_uint64* pFramesRead)
 {
     ma_result result = MA_SUCCESS;
-    ma_uint64 framesRead;
+    ma_uint64 framesRead = 0;
     ma_bool32 isLooping;
     ma_bool32 isDecodedBufferBusy = MA_FALSE;
 
@@ -7445,10 +7452,15 @@ MA_API ma_result ma_resource_manager_data_buffer_read_pcm_frames(ma_resource_man
     if (pDataBuffer->seekToCursorOnNextRead) {
         pDataBuffer->seekToCursorOnNextRead = MA_FALSE;
 
-        result = ma_data_source_seek_to_pcm_frame(ma_resource_manager_data_buffer_get_connector(pDataBuffer), pDataBuffer->cursorInPCMFrames);
+        result = ma_data_source_seek_to_pcm_frame(ma_resource_manager_data_buffer_get_connector(pDataBuffer), pDataBuffer->seekTargetInPCMFrames);
         if (result != MA_SUCCESS) {
             return result;
         }
+    }
+
+    result = ma_resource_manager_data_buffer_get_looping(pDataBuffer, &isLooping);
+    if (result != MA_SUCCESS) {
+        return result;
     }
 
     /*
@@ -7457,45 +7469,51 @@ MA_API ma_result ma_resource_manager_data_buffer_read_pcm_frames(ma_resource_man
     */
     if (ma_resource_manager_data_buffer_node_get_data_supply_type(pDataBuffer->pNode) == ma_resource_manager_data_supply_type_decoded) {
         ma_uint64 availableFrames;
+
+        isDecodedBufferBusy = (ma_resource_manager_data_buffer_node_result(pDataBuffer->pNode) == MA_BUSY);
+
         if (ma_resource_manager_data_buffer_get_available_frames(pDataBuffer, &availableFrames) == MA_SUCCESS) {
             /* Don't try reading more than the available frame count. */
             if (frameCount > availableFrames) {
                 frameCount = availableFrames;
-                isDecodedBufferBusy = (ma_resource_manager_data_buffer_node_result(pDataBuffer->pNode) == MA_BUSY);
-
-                if (!isDecodedBufferBusy && availableFrames == 0) {
+    
+                /*
+                If there's no frames available we want to set the status to MA_AT_END. The logic below
+                will check if the node is busy, and if so, change it to MA_BUSY. The reason we do this
+                is because we don't want to call `ma_data_source_read_pcm_frames()` if the frame count
+                is 0 because that'll result in a situation where it's possible MA_AT_END won't get
+                returned.
+                */
+                if (frameCount == 0) {
                     result = MA_AT_END;
                 }
+            } else {
+                isDecodedBufferBusy = MA_FALSE; /* We have enough frames available in the buffer to avoid a MA_BUSY status. */
             }
         }
     }
 
-    if (result == MA_SUCCESS) {
-        result = ma_resource_manager_data_buffer_get_looping(pDataBuffer, &isLooping);
-        if (result != MA_SUCCESS) {
-            return result;
-        }
-
+    /* Don't attempt to read anything if we've got no frames available. */
+    if (frameCount > 0) {
         result = ma_data_source_read_pcm_frames(ma_resource_manager_data_buffer_get_connector(pDataBuffer), pFramesOut, frameCount, &framesRead, isLooping);
-        pDataBuffer->cursorInPCMFrames += framesRead;
+    }
 
-        /*
-        If we returned MA_AT_END, but the node is still loading, we don't want to return that code or else the caller will interpret the sound
-        as at the end and terminate decoding.
-        */
-        if (result == MA_AT_END) {
-            if (ma_resource_manager_data_buffer_node_result(pDataBuffer->pNode) == MA_BUSY) {
-                result = MA_BUSY;
-            }
-        }
-
-        if (isDecodedBufferBusy) {
+    /*
+    If we returned MA_AT_END, but the node is still loading, we don't want to return that code or else the caller will interpret the sound
+    as at the end and terminate decoding.
+    */
+    if (result == MA_AT_END) {
+        if (ma_resource_manager_data_buffer_node_result(pDataBuffer->pNode) == MA_BUSY) {
             result = MA_BUSY;
         }
+    }
 
-        if (pFramesRead != NULL) {
-            *pFramesRead = framesRead;
-        }
+    if (isDecodedBufferBusy) {
+        result = MA_BUSY;
+    }
+
+    if (pFramesRead != NULL) {
+        *pFramesRead = framesRead;
     }
 
     return result;
@@ -7510,7 +7528,7 @@ MA_API ma_result ma_resource_manager_data_buffer_seek_to_pcm_frame(ma_resource_m
 
     /* If we haven't yet got a connector we need to abort. */
     if (ma_resource_manager_data_buffer_node_get_data_supply_type(pDataBuffer->pNode) == ma_resource_manager_data_supply_type_unknown) {
-        pDataBuffer->cursorInPCMFrames = frameIndex;
+        pDataBuffer->seekTargetInPCMFrames = frameIndex;
         pDataBuffer->seekToCursorOnNextRead = MA_TRUE;
         return MA_BUSY; /* Still loading. */
     }
@@ -7520,7 +7538,7 @@ MA_API ma_result ma_resource_manager_data_buffer_seek_to_pcm_frame(ma_resource_m
         return result;
     }
 
-    pDataBuffer->cursorInPCMFrames = frameIndex;
+    pDataBuffer->seekTargetInPCMFrames = ~(ma_uint64)0; /* <-- For identification purposes. */
     pDataBuffer->seekToCursorOnNextRead = MA_FALSE;
 
     return MA_SUCCESS;
@@ -7576,9 +7594,35 @@ MA_API ma_result ma_resource_manager_data_buffer_get_cursor_in_pcm_frames(ma_res
         return MA_INVALID_ARGS;
     }
 
-    *pCursor = pDataBuffer->cursorInPCMFrames;
+    *pCursor = 0;
 
-    return MA_SUCCESS;
+    switch (ma_resource_manager_data_buffer_node_get_data_supply_type(pDataBuffer->pNode))
+    {
+        case ma_resource_manager_data_supply_type_encoded:
+        {
+            return ma_decoder_get_cursor_in_pcm_frames(&pDataBuffer->connector.decoder, pCursor);
+        };
+
+        case ma_resource_manager_data_supply_type_decoded:
+        {
+            return ma_audio_buffer_get_cursor_in_pcm_frames(&pDataBuffer->connector.buffer, pCursor);
+        };
+
+        case ma_resource_manager_data_supply_type_decoded_paged:
+        {
+            return ma_paged_audio_buffer_get_cursor_in_pcm_frames(&pDataBuffer->connector.pagedBuffer, pCursor);
+        };
+
+        case ma_resource_manager_data_supply_type_unknown:
+        {
+            return MA_BUSY;
+        };
+
+        default:
+        {
+            return MA_INVALID_ARGS;
+        }
+    }
 }
 
 MA_API ma_result ma_resource_manager_data_buffer_get_length_in_pcm_frames(ma_resource_manager_data_buffer* pDataBuffer, ma_uint64* pLength)
@@ -7663,19 +7707,16 @@ MA_API ma_result ma_resource_manager_data_buffer_get_available_frames(ma_resourc
 
         case ma_resource_manager_data_supply_type_decoded:
         {
-            if (pDataBuffer->pNode->data.decoded.decodedFrameCount > pDataBuffer->cursorInPCMFrames) {
-                *pAvailableFrames = pDataBuffer->pNode->data.decoded.decodedFrameCount - pDataBuffer->cursorInPCMFrames;
-            } else {
-                *pAvailableFrames = 0;
-            }
-
-            return MA_SUCCESS;
+            return ma_audio_buffer_get_available_frames(&pDataBuffer->connector.buffer, pAvailableFrames);
         };
 
         case ma_resource_manager_data_supply_type_decoded_paged:
         {
-            if (pDataBuffer->pNode->data.decodedPaged.decodedFrameCount > pDataBuffer->cursorInPCMFrames) {
-                *pAvailableFrames = pDataBuffer->pNode->data.decodedPaged.decodedFrameCount - pDataBuffer->cursorInPCMFrames;
+            ma_uint64 cursor;
+            ma_paged_audio_buffer_get_cursor_in_pcm_frames(&pDataBuffer->connector.pagedBuffer, &cursor);
+
+            if (pDataBuffer->pNode->data.decodedPaged.decodedFrameCount > cursor) {
+                *pAvailableFrames = pDataBuffer->pNode->data.decodedPaged.decodedFrameCount - cursor;
             } else {
                 *pAvailableFrames = 0;
             }
@@ -11607,6 +11648,11 @@ MA_API ma_uint64 ma_engine_get_time(const ma_engine* pEngine)
     return ma_node_graph_get_time(&pEngine->nodeGraph);
 }
 
+MA_API ma_uint64 ma_engine_set_time(ma_engine* pEngine, ma_uint64 globalTime)
+{
+    return ma_node_graph_set_time(&pEngine->nodeGraph, globalTime);
+}
+
 MA_API ma_uint32 ma_engine_get_channels(const ma_engine* pEngine)
 {
     return ma_node_graph_get_channels(&pEngine->nodeGraph);
@@ -11933,6 +11979,7 @@ static ma_result ma_sound_preinit(ma_engine* pEngine, ma_sound* pSound)
     }
 
     MA_ZERO_OBJECT(pSound);
+    pSound->seekTarget = MA_SEEK_TARGET_NONE;
 
     if (pEngine == NULL) {
         return MA_INVALID_ARGS;
@@ -12227,7 +12274,7 @@ MA_API ma_result ma_sound_start(ma_sound* pSound)
     /* If the sound is at the end it means we want to start from the start again. */
     if (ma_sound_at_end(pSound)) {
         ma_result result = ma_data_source_seek_to_pcm_frame(pSound->pDataSource, 0);
-        if (result != MA_SUCCESS) {
+        if (result != MA_SUCCESS && result != MA_NOT_IMPLEMENTED) {
             return result;  /* Failed to seek back to the start. */
         }
 
