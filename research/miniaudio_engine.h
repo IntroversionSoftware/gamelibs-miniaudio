@@ -2003,6 +2003,255 @@ MA_API void ma_sound_group_set_stop_time_in_milliseconds(ma_sound_group* pGroup,
 MA_API ma_bool32 ma_sound_group_is_playing(const ma_sound_group* pGroup);
 MA_API ma_uint64 ma_sound_group_get_time_in_pcm_frames(const ma_sound_group* pGroup);
 
+
+
+/*
+Biquad Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_biquad_config biquad;
+} ma_biquad_node_config;
+
+MA_API ma_biquad_node_config ma_biquad_node_config_init(ma_uint32 channels, float b0, float b1, float b2, float a0, float a1, float a2);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_biquad biquad;
+} ma_biquad_node;
+
+MA_API ma_result ma_biquad_node_init(ma_node_graph* pNodeGraph, const ma_biquad_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_biquad_node* pNode);
+MA_API ma_result ma_biquad_node_reinit(const ma_biquad_config* pConfig, ma_biquad_node* pNode);
+MA_API void ma_biquad_node_uninit(ma_biquad_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+Low Pass Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_lpf_config lpf;
+} ma_lpf_node_config;
+
+MA_API ma_lpf_node_config ma_lpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_lpf lpf;
+} ma_lpf_node;
+
+MA_API ma_result ma_lpf_node_init(ma_node_graph* pNodeGraph, const ma_lpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_lpf_node* pNode);
+MA_API ma_result ma_lpf_node_reinit(const ma_lpf_config* pConfig, ma_lpf_node* pNode);
+MA_API void ma_lpf_node_uninit(ma_lpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+High Pass Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_hpf_config hpf;
+} ma_hpf_node_config;
+
+MA_API ma_hpf_node_config ma_hpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_hpf hpf;
+} ma_hpf_node;
+
+MA_API ma_result ma_hpf_node_init(ma_node_graph* pNodeGraph, const ma_hpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_hpf_node* pNode);
+MA_API ma_result ma_hpf_node_reinit(const ma_hpf_config* pConfig, ma_hpf_node* pNode);
+MA_API void ma_hpf_node_uninit(ma_hpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+Band Pass Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_bpf_config bpf;
+} ma_bpf_node_config;
+
+MA_API ma_bpf_node_config ma_bpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_bpf bpf;
+} ma_bpf_node;
+
+MA_API ma_result ma_bpf_node_init(ma_node_graph* pNodeGraph, const ma_bpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_bpf_node* pNode);
+MA_API ma_result ma_bpf_node_reinit(const ma_bpf_config* pConfig, ma_bpf_node* pNode);
+MA_API void ma_bpf_node_uninit(ma_bpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+Notching Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_notch_config notch;
+} ma_notch_node_config;
+
+MA_API ma_notch_node_config ma_notch_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double q, double frequency);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_notch2 notch;
+} ma_notch_node;
+
+MA_API ma_result ma_notch_node_init(ma_node_graph* pNodeGraph, const ma_notch_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_notch_node* pNode);
+MA_API ma_result ma_notch_node_reinit(const ma_notch_config* pConfig, ma_notch_node* pNode);
+MA_API void ma_notch_node_uninit(ma_notch_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+Peaking Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_peak_config peak;
+} ma_peak_node_config;
+
+MA_API ma_peak_node_config ma_peak_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_peak2 peak;
+} ma_peak_node;
+
+MA_API ma_result ma_peak_node_init(ma_node_graph* pNodeGraph, const ma_peak_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_peak_node* pNode);
+MA_API ma_result ma_peak_node_reinit(const ma_peak_config* pConfig, ma_peak_node* pNode);
+MA_API void ma_peak_node_uninit(ma_peak_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+Low Shelf Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_loshelf_config loshelf;
+} ma_loshelf_node_config;
+
+MA_API ma_loshelf_node_config ma_loshelf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_loshelf2 loshelf;
+} ma_loshelf_node;
+
+MA_API ma_result ma_loshelf_node_init(ma_node_graph* pNodeGraph, const ma_loshelf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_loshelf_node* pNode);
+MA_API ma_result ma_loshelf_node_reinit(const ma_loshelf_config* pConfig, ma_loshelf_node* pNode);
+MA_API void ma_loshelf_node_uninit(ma_loshelf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+/*
+High Shelf Filter Node
+*/
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_hishelf_config hishelf;
+} ma_hishelf_node_config;
+
+MA_API ma_hishelf_node_config ma_hishelf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_hishelf2 hishelf;
+} ma_hishelf_node;
+
+MA_API ma_result ma_hishelf_node_init(ma_node_graph* pNodeGraph, const ma_hishelf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_hishelf_node* pNode);
+MA_API ma_result ma_hishelf_node_reinit(const ma_hishelf_config* pConfig, ma_hishelf_node* pNode);
+MA_API void ma_hishelf_node_uninit(ma_hishelf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks);
+
+
+
+/*
+Delay
+*/
+typedef struct
+{
+    ma_uint32 channels;
+    ma_uint32 sampleRate;
+    ma_uint32 delayInFrames;
+    ma_bool32 delayStart;       /* Set to true to delay the start of the output; false otherwise. */
+    float wet;                  /* 0..1. Default = 1. */
+    float dry;                  /* 0..1. Default = 1. */
+    float decay;                /* 0..1. Default = 0 (no feedback). Feedback decay. Use this for echo. */
+} ma_delay_config;
+
+MA_API ma_delay_config ma_delay_config_init(ma_uint32 channels, ma_uint32 sampleRate, ma_uint32 delayInFrames, float decay);
+
+
+typedef struct
+{
+    ma_delay_config config;
+    ma_uint32 cursor;               /* Feedback is written to this cursor. Always equal or in front of the read cursor. */
+    ma_uint32 bufferSizeInFrames;   /* The maximum of config.startDelayInFrames and config.feedbackDelayInFrames. */
+    float* pBuffer;
+} ma_delay;
+
+MA_API ma_result ma_delay_init(const ma_delay_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_delay* pDelay);
+MA_API void ma_delay_uninit(ma_delay* pDelay, const ma_allocation_callbacks* pAllocationCallbacks);
+MA_API ma_result ma_delay_process_pcm_frames(ma_delay* pDelay, void* pFramesOut, const void* pFramesIn, ma_uint32 frameCount);
+MA_API void ma_delay_set_wet(ma_delay* pDelay, float value);
+MA_API float ma_delay_get_wet(const ma_delay* pDelay);
+MA_API void ma_delay_set_dry(ma_delay* pDelay, float value);
+MA_API float ma_delay_get_dry(const ma_delay* pDelay);
+MA_API void ma_delay_set_decay(ma_delay* pDelay, float value);
+MA_API float ma_delay_get_decay(const ma_delay* pDelay);
+
+
+
+typedef struct
+{
+    ma_node_config nodeConfig;
+    ma_delay_config delay;
+} ma_delay_node_config;
+
+MA_API ma_delay_node_config ma_delay_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, ma_uint32 delayInFrames, float decay);
+
+
+typedef struct
+{
+    ma_node_base baseNode;
+    ma_delay delay;
+} ma_delay_node;
+
+MA_API ma_result ma_delay_node_init(ma_node_graph* pNodeGraph, const ma_delay_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_delay_node* pDelayNode);
+MA_API void ma_delay_node_uninit(ma_delay_node* pDelayNode, const ma_allocation_callbacks* pAllocationCallbacks);
+MA_API void ma_delay_node_set_wet(ma_delay_node* pDelayNode, float value);
+MA_API float ma_delay_node_get_wet(const ma_delay_node* pDelayNode);
+MA_API void ma_delay_node_set_dry(ma_delay_node* pDelayNode, float value);
+MA_API float ma_delay_node_get_dry(const ma_delay_node* pDelayNode);
+MA_API void ma_delay_node_set_decay(ma_delay_node* pDelayNode, float value);
+MA_API float ma_delay_node_get_decay(const ma_delay_node* pDelayNode);
+
+
 #ifdef __cplusplus
 }
 #endif
@@ -13083,5 +13332,974 @@ MA_API ma_uint64 ma_sound_group_get_time_in_pcm_frames(const ma_sound_group* pGr
     return ma_sound_get_time_in_pcm_frames(pGroup);
 }
 
+
+
+
+/*
+Biquad Node
+*/
+MA_API ma_biquad_node_config ma_biquad_node_config_init(ma_uint32 channels, float b0, float b1, float b2, float a0, float a1, float a2)
+{
+    ma_biquad_node_config config;
+    
+    config.nodeConfig = ma_node_config_init();
+    config.biquad = ma_biquad_config_init(ma_format_f32, channels, b0, b1, b2, a0, a1, a2);
+
+    return config;
+}
+
+static void ma_biquad_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_biquad_node* pLPFNode = (ma_biquad_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_biquad_process_pcm_frames(&pLPFNode->biquad, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_biquad_node_vtable =
+{
+    ma_biquad_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_biquad_node_init(ma_node_graph* pNodeGraph, const ma_biquad_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_biquad_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->biquad.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_biquad_init(&pConfig->biquad, &pNode->biquad);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_biquad_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->biquad.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->biquad.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_biquad_node_reinit(const ma_biquad_config* pConfig, ma_biquad_node* pNode)
+{
+    ma_biquad_node* pLPFNode = (ma_biquad_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_biquad_reinit(pConfig, &pLPFNode->biquad);
+}
+
+MA_API void ma_biquad_node_uninit(ma_biquad_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+Low Pass Filter Node
+*/
+MA_API ma_lpf_node_config ma_lpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order)
+{
+    ma_lpf_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.lpf = ma_lpf_config_init(ma_format_f32, channels, sampleRate, cutoffFrequency, order);
+
+    return config;
+}
+
+static void ma_lpf_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_lpf_node* pLPFNode = (ma_lpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_lpf_process_pcm_frames(&pLPFNode->lpf, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_lpf_node_vtable =
+{
+    ma_lpf_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_lpf_node_init(ma_node_graph* pNodeGraph, const ma_lpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_lpf_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->lpf.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_lpf_init(&pConfig->lpf, &pNode->lpf);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_lpf_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->lpf.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->lpf.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_lpf_node_reinit(const ma_lpf_config* pConfig, ma_lpf_node* pNode)
+{
+    ma_lpf_node* pLPFNode = (ma_lpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_lpf_reinit(pConfig, &pLPFNode->lpf);
+}
+
+MA_API void ma_lpf_node_uninit(ma_lpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+High Pass Filter Node
+*/
+MA_API ma_hpf_node_config ma_hpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order)
+{
+    ma_hpf_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.hpf = ma_hpf_config_init(ma_format_f32, channels, sampleRate, cutoffFrequency, order);
+
+    return config;
+}
+
+static void ma_hpf_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_hpf_node* pHPFNode = (ma_hpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_hpf_process_pcm_frames(&pHPFNode->hpf, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_hpf_node_vtable =
+{
+    ma_hpf_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_hpf_node_init(ma_node_graph* pNodeGraph, const ma_hpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_hpf_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->hpf.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_hpf_init(&pConfig->hpf, &pNode->hpf);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_hpf_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->hpf.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->hpf.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_hpf_node_reinit(const ma_hpf_config* pConfig, ma_hpf_node* pNode)
+{
+    ma_hpf_node* pHPFNode = (ma_hpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_hpf_reinit(pConfig, &pHPFNode->hpf);
+}
+
+MA_API void ma_hpf_node_uninit(ma_hpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+
+/*
+Band Pass Filter Node
+*/
+MA_API ma_bpf_node_config ma_bpf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double cutoffFrequency, ma_uint32 order)
+{
+    ma_bpf_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.bpf = ma_bpf_config_init(ma_format_f32, channels, sampleRate, cutoffFrequency, order);
+
+    return config;
+}
+
+static void ma_bpf_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_bpf_node* pBPFNode = (ma_bpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_bpf_process_pcm_frames(&pBPFNode->bpf, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_bpf_node_vtable =
+{
+    ma_bpf_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_bpf_node_init(ma_node_graph* pNodeGraph, const ma_bpf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_bpf_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->bpf.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_bpf_init(&pConfig->bpf, &pNode->bpf);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_bpf_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->bpf.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->bpf.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_bpf_node_reinit(const ma_bpf_config* pConfig, ma_bpf_node* pNode)
+{
+    ma_bpf_node* pBPFNode = (ma_bpf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_bpf_reinit(pConfig, &pBPFNode->bpf);
+}
+
+MA_API void ma_bpf_node_uninit(ma_bpf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+Notching Filter Node
+*/
+MA_API ma_notch_node_config ma_notch_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double q, double frequency)
+{
+    ma_notch_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.notch = ma_notch2_config_init(ma_format_f32, channels, sampleRate, q, frequency);
+
+    return config;
+}
+
+static void ma_notch_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_notch_node* pBPFNode = (ma_notch_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_notch2_process_pcm_frames(&pBPFNode->notch, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_notch_node_vtable =
+{
+    ma_notch_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_notch_node_init(ma_node_graph* pNodeGraph, const ma_notch_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_notch_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->notch.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_notch2_init(&pConfig->notch, &pNode->notch);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_notch_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->notch.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->notch.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_notch_node_reinit(const ma_notch_config* pConfig, ma_notch_node* pNode)
+{
+    ma_notch_node* pBPFNode = (ma_notch_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_notch2_reinit(pConfig, &pBPFNode->notch);
+}
+
+MA_API void ma_notch_node_uninit(ma_notch_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+Peaking Filter Node
+*/
+MA_API ma_peak_node_config ma_peak_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency)
+{
+    ma_peak_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.peak = ma_peak2_config_init(ma_format_f32, channels, sampleRate, gainDB, q, frequency);
+
+    return config;
+}
+
+static void ma_peak_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_peak_node* pBPFNode = (ma_peak_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_peak2_process_pcm_frames(&pBPFNode->peak, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_peak_node_vtable =
+{
+    ma_peak_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_peak_node_init(ma_node_graph* pNodeGraph, const ma_peak_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_peak_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->peak.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_peak2_init(&pConfig->peak, &pNode->peak);
+    if (result != MA_SUCCESS) {
+        ma_node_uninit(pNode, pAllocationCallbacks);
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_peak_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->peak.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->peak.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_peak_node_reinit(const ma_peak_config* pConfig, ma_peak_node* pNode)
+{
+    ma_peak_node* pBPFNode = (ma_peak_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_peak2_reinit(pConfig, &pBPFNode->peak);
+}
+
+MA_API void ma_peak_node_uninit(ma_peak_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+Low Shelf Filter Node
+*/
+MA_API ma_loshelf_node_config ma_loshelf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency)
+{
+    ma_loshelf_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.loshelf = ma_loshelf2_config_init(ma_format_f32, channels, sampleRate, gainDB, q, frequency);
+
+    return config;
+}
+
+static void ma_loshelf_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_loshelf_node* pBPFNode = (ma_loshelf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_loshelf2_process_pcm_frames(&pBPFNode->loshelf, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_loshelf_node_vtable =
+{
+    ma_loshelf_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_loshelf_node_init(ma_node_graph* pNodeGraph, const ma_loshelf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_loshelf_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->loshelf.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_loshelf2_init(&pConfig->loshelf, &pNode->loshelf);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_loshelf_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->loshelf.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->loshelf.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_loshelf_node_reinit(const ma_loshelf_config* pConfig, ma_loshelf_node* pNode)
+{
+    ma_loshelf_node* pBPFNode = (ma_loshelf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_loshelf2_reinit(pConfig, &pBPFNode->loshelf);
+}
+
+MA_API void ma_loshelf_node_uninit(ma_loshelf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+High Shelf Filter Node
+*/
+MA_API ma_hishelf_node_config ma_hishelf_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, double gainDB, double q, double frequency)
+{
+    ma_hishelf_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.hishelf = ma_hishelf2_config_init(ma_format_f32, channels, sampleRate, gainDB, q, frequency);
+
+    return config;
+}
+
+static void ma_hishelf_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_hishelf_node* pBPFNode = (ma_hishelf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+    (void)pFrameCountIn;
+
+    ma_hishelf2_process_pcm_frames(&pBPFNode->hishelf, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_hishelf_node_vtable =
+{
+    ma_hishelf_node_process_pcm_frames,
+    NULL,   /* onGetRequiredInputFrameCount */
+    1,      /* One input. */
+    1,      /* One output. */
+    0       /* Default flags. */
+};
+
+MA_API ma_result ma_hishelf_node_init(ma_node_graph* pNodeGraph, const ma_hishelf_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_hishelf_node* pNode)
+{
+    ma_result result;
+    ma_node_config baseNodeConfig;
+
+    if (pNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNode);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->hishelf.format != ma_format_f32) {
+        return MA_INVALID_ARGS; /* The format must be f32. */
+    }
+
+    result = ma_hishelf2_init(&pConfig->hishelf, &pNode->hishelf);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseNodeConfig = ma_node_config_init();
+    baseNodeConfig.vtable            = &g_ma_hishelf_node_vtable;
+    baseNodeConfig.inputChannels[0]  = pConfig->hishelf.channels;
+    baseNodeConfig.outputChannels[0] = pConfig->hishelf.channels;
+
+    result = ma_node_init(pNodeGraph, &baseNodeConfig, pAllocationCallbacks, pNode);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    return result;
+}
+
+MA_API ma_result ma_hishelf_node_reinit(const ma_hishelf_config* pConfig, ma_hishelf_node* pNode)
+{
+    ma_hishelf_node* pBPFNode = (ma_hishelf_node*)pNode;
+
+    MA_ASSERT(pNode != NULL);
+
+    return ma_hishelf2_reinit(pConfig, &pBPFNode->hishelf);
+}
+
+MA_API void ma_hishelf_node_uninit(ma_hishelf_node* pNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    ma_node_uninit(pNode, pAllocationCallbacks);
+}
+
+
+
+/*
+Delay
+*/
+MA_API ma_delay_config ma_delay_config_init(ma_uint32 channels, ma_uint32 sampleRate, ma_uint32 delayInFrames, float decay)
+{
+    ma_delay_config config;
+
+    MA_ZERO_OBJECT(&config);
+    config.channels      = channels;
+    config.sampleRate    = sampleRate;
+    config.delayInFrames = delayInFrames;
+    config.delayStart    = (decay == 0) ? MA_TRUE : MA_FALSE;   /* Delay the start if it looks like we're not configuring an echo. */
+    config.wet           = 1;
+    config.dry           = 1;
+    config.decay         = decay;
+
+    return config;
+}
+
+
+MA_API ma_result ma_delay_init(const ma_delay_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_delay* pDelay)
+{
+    if (pDelay == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pDelay);
+
+    if (pConfig == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (pConfig->decay < 0 || pConfig->decay > 1) {
+        return MA_INVALID_ARGS;
+    }
+
+    pDelay->config             = *pConfig;
+    pDelay->bufferSizeInFrames = pConfig->delayInFrames;
+    pDelay->cursor             = 0;
+    
+    pDelay->pBuffer = (float*)ma_malloc((size_t)(pDelay->bufferSizeInFrames * ma_get_bytes_per_frame(ma_format_f32, pConfig->channels)), pAllocationCallbacks);
+    if (pDelay->pBuffer == NULL) {
+        return MA_OUT_OF_MEMORY;
+    }
+
+    ma_silence_pcm_frames(pDelay->pBuffer, pDelay->bufferSizeInFrames, ma_format_f32, pConfig->channels);
+
+    return MA_SUCCESS;
+}
+
+MA_API void ma_delay_uninit(ma_delay* pDelay, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    if (pDelay == NULL) {
+        return;
+    }
+
+    ma_free(pDelay->pBuffer, pAllocationCallbacks);
+}
+
+MA_API ma_result ma_delay_process_pcm_frames(ma_delay* pDelay, void* pFramesOut, const void* pFramesIn, ma_uint32 frameCount)
+{
+    ma_uint32 iFrame;
+    ma_uint32 iChannel;
+    float* pFramesOutF32 = (float*)pFramesOut;
+    const float* pFramesInF32 = (const float*)pFramesIn;
+
+    if (pDelay == NULL || pFramesOut == NULL || pFramesIn == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
+        for (iChannel = 0; iChannel < pDelay->config.channels; iChannel += 1) {
+            ma_uint32 iBuffer = (pDelay->cursor * pDelay->config.channels) + iChannel;
+
+            if (pDelay->config.delayStart) {
+                /* Delayed start. */
+
+                /* Read */
+                pFramesOutF32[iChannel] = pDelay->pBuffer[iBuffer] * pDelay->config.wet;
+
+                /* Feedback */
+                pDelay->pBuffer[iBuffer] = (pDelay->pBuffer[iBuffer] * pDelay->config.decay) + (pFramesInF32[iChannel] * pDelay->config.dry);
+            } else {
+                /* Immediate start */
+
+                /* Feedback */
+                pDelay->pBuffer[iBuffer] = (pDelay->pBuffer[iBuffer] * pDelay->config.decay) + (pFramesInF32[iChannel] * pDelay->config.dry);
+
+                /* Read */
+                pFramesOutF32[iChannel] = pDelay->pBuffer[iBuffer] * pDelay->config.wet;
+            }
+        }
+
+        pDelay->cursor = (pDelay->cursor + 1) % pDelay->bufferSizeInFrames;
+        
+        pFramesOutF32 += pDelay->config.channels;
+        pFramesInF32  += pDelay->config.channels;
+    }
+
+    return MA_SUCCESS;
+}
+
+MA_API void ma_delay_set_wet(ma_delay* pDelay, float value)
+{
+    if (pDelay == NULL) {
+        return;
+    }
+
+    pDelay->config.wet = value;
+}
+
+MA_API float ma_delay_get_wet(const ma_delay* pDelay)
+{
+    if (pDelay == NULL) {
+        return 0;
+    }
+
+    return pDelay->config.wet;
+}
+
+MA_API void ma_delay_set_dry(ma_delay* pDelay, float value)
+{
+    if (pDelay == NULL) {
+        return;
+    }
+
+    pDelay->config.dry = value;
+}
+
+MA_API float ma_delay_get_dry(const ma_delay* pDelay)
+{
+    if (pDelay == NULL) {
+        return 0;
+    }
+
+    return pDelay->config.dry;
+}
+
+MA_API void ma_delay_set_decay(ma_delay* pDelay, float value)
+{
+    if (pDelay == NULL) {
+        return;
+    }
+
+    pDelay->config.decay = value;
+}
+
+MA_API float ma_delay_get_decay(const ma_delay* pDelay)
+{
+    if (pDelay == NULL) {
+        return 0;
+    }
+
+    return pDelay->config.decay;
+}
+
+
+
+
+MA_API ma_delay_node_config ma_delay_node_config_init(ma_uint32 channels, ma_uint32 sampleRate, ma_uint32 delayInFrames, float decay)
+{
+    ma_delay_node_config config;
+
+    config.nodeConfig = ma_node_config_init();
+    config.delay = ma_delay_config_init(channels, sampleRate, delayInFrames, decay);
+
+    return config;
+}
+
+
+static void ma_delay_node_process_pcm_frames(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut)
+{
+    ma_delay_node* pDelayNode = (ma_delay_node*)pNode;
+
+    (void)pFrameCountIn;
+
+    ma_delay_process_pcm_frames(&pDelayNode->delay, ppFramesOut[0], ppFramesIn[0], *pFrameCountOut);
+}
+
+static ma_node_vtable g_ma_delay_node_vtable =
+{
+    ma_delay_node_process_pcm_frames,
+    NULL,
+    1,  /* 1 input channels. */
+    1,  /* 1 output channel. */
+    MA_NODE_FLAG_CONTINUOUS_PROCESSING  /* Reverb requires continuous processing to ensure the tail get's processed. */
+};
+
+MA_API ma_result ma_delay_node_init(ma_node_graph* pNodeGraph, const ma_delay_node_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_delay_node* pDelayNode)
+{
+    ma_result result;
+    ma_node_config baseConfig;
+
+    if (pDelayNode == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pDelayNode);
+
+    result = ma_delay_init(&pConfig->delay, pAllocationCallbacks, &pDelayNode->delay);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    baseConfig = pConfig->nodeConfig;
+    baseConfig.vtable            = &g_ma_delay_node_vtable;
+    baseConfig.inputChannels [0] = pConfig->delay.channels;
+    baseConfig.inputChannels [1] = 0;                   /* Unused. */
+    baseConfig.outputChannels[0] = pConfig->delay.channels;
+    baseConfig.outputChannels[1] = 0;                   /* Unused. */
+
+    result = ma_node_init(pNodeGraph, &baseConfig, pAllocationCallbacks, &pDelayNode->baseNode);
+    if (result != MA_SUCCESS) {
+        ma_delay_uninit(&pDelayNode->delay, pAllocationCallbacks);
+        return result;
+    }
+
+    return result;
+}
+
+MA_API void ma_delay_node_uninit(ma_delay_node* pDelayNode, const ma_allocation_callbacks* pAllocationCallbacks)
+{
+    if (pDelayNode == NULL) {
+        return;
+    }
+
+    /* The base node is always uninitialized first. */
+    ma_node_uninit(pDelayNode, pAllocationCallbacks);
+    ma_delay_uninit(&pDelayNode->delay, pAllocationCallbacks);
+}
+
+MA_API void ma_delay_node_set_wet(ma_delay_node* pDelayNode, float value)
+{
+    if (pDelayNode == NULL) {
+        return;
+    }
+
+    ma_delay_set_wet(&pDelayNode->delay, value);
+}
+
+MA_API float ma_delay_node_get_wet(const ma_delay_node* pDelayNode)
+{
+    if (pDelayNode == NULL) {
+        return 0;
+    }
+
+    return ma_delay_get_wet(&pDelayNode->delay);
+}
+
+MA_API void ma_delay_node_set_dry(ma_delay_node* pDelayNode, float value)
+{
+    if (pDelayNode == NULL) {
+        return;
+    }
+
+    ma_delay_set_dry(&pDelayNode->delay, value);
+}
+
+MA_API float ma_delay_node_get_dry(const ma_delay_node* pDelayNode)
+{
+    if (pDelayNode == NULL) {
+        return 0;
+    }
+
+    return ma_delay_get_dry(&pDelayNode->delay);
+}
+
+MA_API void ma_delay_node_set_decay(ma_delay_node* pDelayNode, float value)
+{
+    if (pDelayNode == NULL) {
+        return;
+    }
+
+    ma_delay_set_decay(&pDelayNode->delay, value);
+}
+
+MA_API float ma_delay_node_get_decay(const ma_delay_node* pDelayNode)
+{
+    if (pDelayNode == NULL) {
+        return 0;
+    }
+
+    return ma_delay_get_decay(&pDelayNode->delay);
+}
 
 #endif
