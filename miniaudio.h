@@ -46507,6 +46507,9 @@ static ma_result ma_decoder_read_bytes(ma_decoder* pDecoder, void* pBufferOut, s
         *pBytesRead = bytesRead;
     }
 
+    if (bytesRead == 0)
+        return MA_END_OF_FILE;
+
     return MA_SUCCESS;
 }
 
