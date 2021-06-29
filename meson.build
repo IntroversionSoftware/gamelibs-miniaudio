@@ -14,17 +14,6 @@ if target_machine.system() == 'darwin'
     ]
 endif
 
-vorbis_decoder = get_option('vorbis')
-if vorbis_decoder == 'libvorbis'
-    c_flags += ['-DUSE_OGGVORBIS']
-    link_deps = [
-        dependency('ogg'),
-        dependency('vorbis'),
-    ]
-elif vorbis_decoder == 'stb'
-    c_flags += ['-DUSE_STB_VORBIS']
-endif
-
 incdirs = ['.', 'research']
 
 sources = [
