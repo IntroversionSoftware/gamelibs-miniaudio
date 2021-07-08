@@ -1,6 +1,6 @@
 /*
 Audio playback and capture library. Choice of public domain or MIT-0. See license statements at the end of this file.
-miniaudio - v0.10.37 - TBD
+miniaudio - v0.10.37 - 2021-07-06
 
 David Reid - mackron@gmail.com
 
@@ -8543,7 +8543,7 @@ MA_API ma_result ma_log_postv(ma_log* pLog, ma_uint32 level, const char* pFormat
                 return MA_OUT_OF_MEMORY;
             }
 
-            length = vsnprintf(pFormattedMessageHeap, sizeof(pFormattedMessageHeap), pFormat, args);
+            length = vsnprintf(pFormattedMessageHeap, length + 1, pFormat, args);
             if (length < 0) {
                 ma_free(pFormattedMessageHeap, &pLog->allocationCallbacks);
                 return MA_INVALID_OPERATION;
@@ -68436,7 +68436,8 @@ The following miscellaneous changes have also been made.
 /*
 REVISION HISTORY
 ================
-0.10.37 - TBD
+0.10.37 - 2021-07-06
+  - Fix a bug with log message formatting.
   - Fix build when compiling with MA_NO_THREADING.
   - Minor updates to channel mapping.
 
