@@ -33,7 +33,6 @@
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
-#include "miniaudio_engine.h"
 
 #elif defined(USE_STB_VORBIS)
 
@@ -45,7 +44,6 @@
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
-#include "miniaudio_engine.h"
 
 extern void *ogg_malloc(size_t size);
 extern void *ogg_calloc(size_t size, size_t n);
