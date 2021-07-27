@@ -57522,6 +57522,9 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
                 }
                 c89atomic_compare_and_swap_64(&pQueue->tail, tail, next);
             } else {
+                if (ma_resource_manager_job_extract_slot(next) == 0xFFFF) {
+                    continue;
+                }
                 *pJob = pQueue->pJobs[ma_resource_manager_job_extract_slot(next)];
                 if (c89atomic_compare_and_swap_64(&pQueue->head, head, next) == head) {
                     break;
