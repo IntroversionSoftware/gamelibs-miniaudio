@@ -58878,7 +58878,6 @@ static ma_result ma_resource_manager_data_buffer_node_acquire(ma_resource_manage
 
                 if (pFilePathCopy == NULL && pFilePathWCopy == NULL) {
                     result = MA_OUT_OF_MEMORY;
-                    ma_resource_manager_data_buffer_bst_unlock(pResourceManager);
                     goto done;
                 }
 
@@ -58916,16 +58915,14 @@ static ma_result ma_resource_manager_data_buffer_node_acquire(ma_resource_manage
 
                     ma_free(pFilePathCopy,  &pResourceManager->config.allocationCallbacks);
                     ma_free(pFilePathWCopy, &pResourceManager->config.allocationCallbacks);
-                    ma_resource_manager_data_buffer_bst_unlock(pResourceManager);
                     goto done;
                 }
             }
         }
     }
-
-early_exit:
     ma_resource_manager_data_buffer_bst_unlock(pResourceManager);
 
+early_exit:
     if (result != MA_SUCCESS) {
         return result;
     }
