@@ -7786,8 +7786,8 @@ typedef struct
 {
     ma_uint32 flags;    /* Flags passed in at initialization time. */
     ma_uint32 capacity; /* The maximum number of jobs that can fit in the queue at a time. Set by the config. */
-    ma_uint64 head;     /* The first item in the list. Required for removing from the top of the list. */
-    ma_uint64 tail;     /* The last item in the list. Required for appending to the end of the list. */
+    MA_ATOMIC ma_uint64 head;     /* The first item in the list. Required for removing from the top of the list. */
+    MA_ATOMIC ma_uint64 tail;     /* The last item in the list. Required for appending to the end of the list. */
 #ifndef MA_NO_THREADING
     ma_semaphore sem;   /* Only used when MA_RESOURCE_MANAGER_JOB_QUEUE_FLAG_NON_BLOCKING is unset. */
 #endif
@@ -57514,9 +57514,11 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
 
     /* Now we need to remove the root item from the list. This must be done without locking. */
     for (;;) {
-        head = pQueue->head;
+        head = c89atomic_load_explicit_64(&pQueue->head, c89atomic_memory_order_acquire);
         tail = pQueue->tail;
         next = pQueue->pJobs[ma_resource_manager_job_extract_slot(head)].next;
+
+        c89atomic_thread_fence(c89atomic_memory_order_seq_cst);
 
         if (ma_resource_manager_job_toc_to_allocation(head) == ma_resource_manager_job_toc_to_allocation(pQueue->head)) {
             if (ma_resource_manager_job_extract_slot(head) == ma_resource_manager_job_extract_slot(tail)) {
