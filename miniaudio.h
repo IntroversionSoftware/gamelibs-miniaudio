@@ -29097,8 +29097,6 @@ static OSStatus ma_on_output__coreaudio(void* pUserData, AudioUnitRenderActionFl
 
     MA_ASSERT(pDevice != NULL);
 
-    ma_log_postf(ma_device_get_log(pDevice), MA_LOG_LEVEL_DEBUG, "INFO: Output Callback: busNumber=%d, frameCount=%d, mNumberBuffers=%d\n", busNumber, frameCount, pBufferList->mNumberBuffers);
-
     /* We need to check whether or not we are outputting interleaved or non-interleaved samples. The way we do this is slightly different for each type. */
     layout = ma_stream_layout_interleaved;
     if (pBufferList->mBuffers[0].mNumberChannels != pDevice->playback.internalChannels) {
@@ -29114,8 +29112,6 @@ static OSStatus ma_on_output__coreaudio(void* pUserData, AudioUnitRenderActionFl
                 if (frameCountForThisBuffer > 0) {
                     ma_device_handle_backend_data_callback(pDevice, pBufferList->mBuffers[iBuffer].mData, NULL, frameCountForThisBuffer);
                 }
-
-                ma_log_postf(ma_device_get_log(pDevice), MA_LOG_LEVEL_DEBUG, "  frameCount=%d, mNumberChannels=%d, mDataByteSize=%d\n", frameCount, pBufferList->mBuffers[iBuffer].mNumberChannels, pBufferList->mBuffers[iBuffer].mDataByteSize);
             } else {
                 /*
                 This case is where the number of channels in the output buffer do not match our internal channels. It could mean that it's
@@ -29123,7 +29119,6 @@ static OSStatus ma_on_output__coreaudio(void* pUserData, AudioUnitRenderActionFl
                 output silence here.
                 */
                 MA_ZERO_MEMORY(pBufferList->mBuffers[iBuffer].mData, pBufferList->mBuffers[iBuffer].mDataByteSize);
-                ma_log_postf(ma_device_get_log(pDevice), MA_LOG_LEVEL_DEBUG, "  WARNING: Outputting silence. frameCount=%d, mNumberChannels=%d, mDataByteSize=%d\n", frameCount, pBufferList->mBuffers[iBuffer].mNumberChannels, pBufferList->mBuffers[iBuffer].mDataByteSize);
             }
         }
     } else {
