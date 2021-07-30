@@ -18,7 +18,6 @@
 #define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
 #define MA_DEBUG_OUTPUT
 
-#define MA_NO_GENERATION
 #define MA_NO_MP3
 #define MA_NO_FLAC
 #define MA_NO_OPUS
