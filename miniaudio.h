@@ -3966,6 +3966,26 @@ typedef ma_uint16 wchar_t;
     #endif
 #endif
 
+#if defined(__GNUC__) || (defined(__clang__) && !defined(_MSC_VER))
+    #if (__GNUC__ >= 4)
+        #define _MA_DEPRECATE_DECL(_Text)  __attribute__((__deprecated__))
+    #else
+        #define _MA_DEPRECATE_DECL(_Text)
+    #endif
+#elif defined(_MSC_VER)
+    #if _MSC_FULL_VER >= 140050320
+        #define _MA_DEPRECATE_DECL(_Text) __declspec(deprecated(_Text))
+    #elif _MSC_VER > 1200
+        #define _MA_DEPRECATE_DECL(_Text) __declspec(deprecated)
+    #else
+        #define _MA_DEPRECATE_DECL(_Text)
+    #endif
+#else
+    #define _MA_DEPRECATE_DECL(_Text)
+#endif
+
+#define MA_DEPRECATE(_Text) _MA_DEPRECATE_DECL(_Text)
+
 /* SIMD alignment in bytes. Currently set to 32 bytes in preparation for future AVX optimizations. */
 #define MA_SIMD_ALIGNMENT  32
 
