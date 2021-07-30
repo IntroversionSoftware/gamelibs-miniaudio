@@ -12139,9 +12139,20 @@ typedef unsigned char           c89atomic_bool;
     #if defined(C89ATOMIC_HAS_64)
         static C89ATOMIC_INLINE c89atomic_uint64 __stdcall c89atomic_fetch_and_explicit_64(volatile c89atomic_uint64* dst, c89atomic_uint64 src, c89atomic_memory_order order)
         {
+#if defined(C89ATOMIC_64BIT)
             c89atomic_uint64 result;
             _c89atomic_choose_intrinsic(order, result, _InterlockedAnd64, (volatile long long *)dst, (long long)src);
             return result;
+#else
+            c89atomic_uint64 oldValue;
+            c89atomic_uint64 newValue;
+            do {
+                oldValue = *dst;
+                newValue = oldValue & src;
+            } while (c89atomic_compare_and_swap_64(dst, oldValue, newValue) != oldValue);
+            (void)order;
+            return oldValue;
+#endif
         }
     #endif
     #if defined(C89ATOMIC_HAS_8)
@@ -12171,9 +12182,20 @@ typedef unsigned char           c89atomic_bool;
     #if defined(C89ATOMIC_HAS_64)
         static C89ATOMIC_INLINE c89atomic_uint64 __stdcall c89atomic_fetch_xor_explicit_64(volatile c89atomic_uint64* dst, c89atomic_uint64 src, c89atomic_memory_order order)
         {
+#if defined(C89ATOMIC_64BIT)
             c89atomic_uint64 result;
             _c89atomic_choose_intrinsic(order, result, _InterlockedXor64, (volatile long long *)dst, (long long)src);
             return result;
+#else
+            c89atomic_uint64 oldValue;
+            c89atomic_uint64 newValue;
+            do {
+                oldValue = *dst;
+                newValue = oldValue ^ src;
+            } while (c89atomic_compare_and_swap_64(dst, oldValue, newValue) != oldValue);
+            (void)order;
+            return oldValue;
+#endif
         }
     #endif
     #if defined(C89ATOMIC_HAS_8)
@@ -12203,9 +12225,20 @@ typedef unsigned char           c89atomic_bool;
     #if defined(C89ATOMIC_HAS_64)
         static C89ATOMIC_INLINE c89atomic_uint64 __stdcall c89atomic_fetch_or_explicit_64(volatile c89atomic_uint64* dst, c89atomic_uint64 src, c89atomic_memory_order order)
         {
+#if defined(C89ATOMIC_64BIT)
             c89atomic_uint64 result;
             _c89atomic_choose_intrinsic(order, result, _InterlockedOr64, (volatile long long *)dst, (long long)src);
             return result;
+#else
+            c89atomic_uint64 oldValue;
+            c89atomic_uint64 newValue;
+            do {
+                oldValue = *dst;
+                newValue = oldValue | src;
+            } while (c89atomic_compare_and_swap_64(dst, oldValue, newValue) != oldValue);
+            (void)order;
+            return oldValue;
+#endif
         }
     #endif
     #if defined(C89ATOMIC_HAS_8)
