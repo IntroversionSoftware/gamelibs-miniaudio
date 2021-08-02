@@ -67422,11 +67422,11 @@ MA_API void ma_engine_node_uninit(ma_engine_node* pEngineNode, const ma_allocati
     The base node always needs to be uninitialized first to ensure it's detached from the graph completely before we
     destroy anything that might be in the middle of being used by the processing function.
     */
-    ma_node_uninit(&pEngineNode->baseNode, NULL);
+    ma_node_uninit(&pEngineNode->baseNode, pAllocationCallbacks);
 
     /* Now that the node has been uninitialized we can safely uninitialize the rest. */
-    ma_spatializer_uninit(&pEngineNode->spatializer, NULL);
-    ma_linear_resampler_uninit(&pEngineNode->resampler, NULL);
+    ma_spatializer_uninit(&pEngineNode->spatializer, pAllocationCallbacks);
+    ma_linear_resampler_uninit(&pEngineNode->resampler, pAllocationCallbacks);
 
     /* Free the heap last. */
     if (pEngineNode->_ownsHeap) {
@@ -68388,7 +68388,7 @@ MA_API void ma_sound_uninit(ma_sound* pSound)
     Always uninitialize the node first. This ensures it's detached from the graph and does not return until it has done
     so which makes thread safety beyond this point trivial.
     */
-    ma_node_uninit(pSound, &pSound->engineNode.pEngine->allocationCallbacks);
+    ma_engine_node_uninit(&pSound->engineNode, &pSound->engineNode.pEngine->allocationCallbacks);
 
     /* Once the sound is detached from the group we can guarantee that it won't be referenced by the mixer thread which means it's safe for us to destroy the data source. */
 #ifndef MA_NO_RESOURCE_MANAGER
