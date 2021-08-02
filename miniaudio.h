@@ -67701,6 +67701,8 @@ on_error_1:
 
 MA_API void ma_engine_uninit(ma_engine* pEngine)
 {
+    ma_uint32 iListener;
+
     if (pEngine == NULL) {
         return;
     }
@@ -67734,6 +67736,9 @@ MA_API void ma_engine_uninit(ma_engine* pEngine)
     ma_mutex_unlock(&pEngine->inlinedSoundLock);
     ma_mutex_uninit(&pEngine->inlinedSoundLock);
 
+    for (iListener = 0; iListener < pEngine->listenerCount; iListener += 1) {
+        ma_spatializer_listener_uninit(&pEngine->listeners[iListener], &pEngine->allocationCallbacks);
+    }
 
     /* Make sure the node graph is uninitialized after the audio thread has been shutdown to prevent accessing of the node graph after being uninitialized. */
     ma_node_graph_uninit(&pEngine->nodeGraph, &pEngine->allocationCallbacks);
