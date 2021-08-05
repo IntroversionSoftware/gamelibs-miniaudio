@@ -3686,6 +3686,8 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
 MA_API ma_result ma_channel_converter_init(const ma_channel_converter_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_channel_converter* pConverter);
 MA_API void ma_channel_converter_uninit(ma_channel_converter* pConverter, const ma_allocation_callbacks* pAllocationCallbacks);
 MA_API ma_result ma_channel_converter_process_pcm_frames(ma_channel_converter* pConverter, void* pFramesOut, const void* pFramesIn, ma_uint64 frameCount);
+MA_API ma_result ma_channel_converter_get_input_channel_map(const ma_channel_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap);
+MA_API ma_result ma_channel_converter_get_output_channel_map(const ma_channel_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap);
 
 
 /**************************************************************************************************************************************************************
@@ -3758,6 +3760,8 @@ MA_API ma_uint64 ma_data_converter_get_input_latency(const ma_data_converter* pC
 MA_API ma_uint64 ma_data_converter_get_output_latency(const ma_data_converter* pConverter);
 MA_API ma_result ma_data_converter_get_required_input_frame_count(const ma_data_converter* pConverter, ma_uint64 outputFrameCount, ma_uint64* pInputFrameCount);
 MA_API ma_result ma_data_converter_get_expected_output_frame_count(const ma_data_converter* pConverter, ma_uint64 inputFrameCount, ma_uint64* pOutputFrameCount);
+MA_API ma_result ma_data_converter_get_input_channel_map(const ma_data_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap);
+MA_API ma_result ma_data_converter_get_output_channel_map(const ma_data_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap);
 
 
 /************************************************************************************************************************************************************
@@ -3842,7 +3846,7 @@ Copies a channel map if one is specified, otherwise copies the default channel m
 
 The output buffer must have a capacity of at least `channels`. If not NULL, the input channel map must also have a capacity of at least `channels`.
 */
-MA_API void ma_channel_map_copy_or_default(ma_channel* pOut, const ma_channel* pIn, ma_uint32 channels);
+MA_API void ma_channel_map_copy_or_default(ma_channel* pOut, size_t channelMapCapOut, const ma_channel* pIn, ma_uint32 channels);
 
 
 /*
@@ -4439,7 +4443,7 @@ struct ma_device_config
         const ma_device_id* pDeviceID;
         ma_format format;
         ma_uint32 channels;
-        ma_channel channelMap[MA_MAX_CHANNELS];
+        ma_channel* pChannelMap;
         ma_channel_mix_mode channelMixMode;
         ma_share_mode shareMode;
     } playback;
@@ -4448,7 +4452,7 @@ struct ma_device_config
         const ma_device_id* pDeviceID;
         ma_format format;
         ma_uint32 channels;
-        ma_channel channelMap[MA_MAX_CHANNELS];
+        ma_channel* pChannelMap;
         ma_channel_mix_mode channelMixMode;
         ma_share_mode shareMode;
     } capture;
@@ -7406,7 +7410,7 @@ typedef struct
     ma_format format;      /* Set to 0 or ma_format_unknown to use the stream's internal format. */
     ma_uint32 channels;    /* Set to 0 to use the stream's internal channels. */
     ma_uint32 sampleRate;  /* Set to 0 to use the stream's internal sample rate. */
-    ma_channel channelMap[MA_MAX_CHANNELS];
+    ma_channel* pChannelMap;
     ma_channel_mix_mode channelMixMode;
     ma_dither_mode ditherMode;
     ma_resampler_config resampling;
@@ -7431,7 +7435,6 @@ struct ma_decoder
     ma_format outputFormat;
     ma_uint32 outputChannels;
     ma_uint32 outputSampleRate;
-    ma_channel outputChannelMap[MA_MAX_CHANNELS];
     ma_data_converter converter;    /* Data conversion is achieved by running frames through this. */
     void* pInputCache;              /* In input format. Can be null if it's not needed. */
     ma_uint64 inputCacheCap;        /* The capacity of the input cache. */
@@ -7631,6 +7634,7 @@ typedef enum
     ma_noise_type_brownian
 } ma_noise_type;
 
+
 typedef struct
 {
     ma_format format;
@@ -7652,19 +7656,25 @@ typedef struct
     {
         struct
         {
-            double bin[MA_MAX_CHANNELS][16];
-            double accumulation[MA_MAX_CHANNELS];
-            ma_uint32 counter[MA_MAX_CHANNELS];
+            double** bin;
+            double* accumulation;
+            ma_uint32* counter;
         } pink;
         struct
         {
-            double accumulation[MA_MAX_CHANNELS];
+            double* accumulation;
         } brownian;
     } state;
+
+    /* Memory management. */
+    void* _pHeap;
+    ma_bool32 _ownsHeap;
 } ma_noise;
 
-MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, ma_noise* pNoise);
-MA_API void ma_noise_uninit(ma_noise* pNoise);
+MA_API ma_result ma_noise_get_heap_size(const ma_noise_config* pConfig, size_t* pHeapSizeInBytes);
+MA_API ma_result ma_noise_init_preallocated(const ma_noise_config* pConfig, void* pHeap, ma_noise* pNoise);
+MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_noise* pNoise);
+MA_API void ma_noise_uninit(ma_noise* pNoise, const ma_allocation_callbacks* pAllocationCallbacks);
 MA_API ma_result ma_noise_read_pcm_frames(ma_noise* pNoise, void* pFramesOut, ma_uint64 frameCount, ma_uint64* pFramesRead);
 MA_API ma_result ma_noise_set_amplitude(ma_noise* pNoise, double amplitude);
 MA_API ma_result ma_noise_set_seed(ma_noise* pNoise, ma_int32 seed);
@@ -35729,10 +35739,10 @@ static ma_result ma_context_init__webaudio(ma_context* pContext, const ma_contex
 
 
 
-static ma_bool32 ma__is_channel_map_valid(const ma_channel* channelMap, ma_uint32 channels)
+static ma_bool32 ma__is_channel_map_valid(const ma_channel* pChannelMap, ma_uint32 channels)
 {
     /* A blank channel map should be allowed, in which case it should use an appropriate default which will depend on context. */
-    if (channelMap[0] != MA_CHANNEL_NONE) {
+    if (pChannelMap != NULL && pChannelMap[0] != MA_CHANNEL_NONE) {
         ma_uint32 iChannel;
 
         if (channels == 0 || channels > MA_MAX_CHANNELS) {
@@ -35743,7 +35753,7 @@ static ma_bool32 ma__is_channel_map_valid(const ma_channel* channelMap, ma_uint3
         for (iChannel = 0; iChannel < channels; ++iChannel) {
             ma_uint32 jChannel;
             for (jChannel = iChannel + 1; jChannel < channels; ++jChannel) {
-                if (channelMap[iChannel] == channelMap[jChannel]) {
+                if (pChannelMap[iChannel] == pChannelMap[jChannel]) {
                     return MA_FALSE;
                 }
             }
@@ -35871,7 +35881,7 @@ static ma_result ma_device__post_init_setup(ma_device* pDevice, ma_device_type d
 
 
     /*
-    In playback mode, iff the data converter does not support retrieval of the required number of
+    In playback mode, if the data converter does not support retrieval of the required number of
     input frames given a number of output frames, we need to fall back to a heap-allocated cache.
     */
     if (deviceType == ma_device_type_playback || deviceType == ma_device_type_duplex) {
@@ -36643,7 +36653,7 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
             return MA_INVALID_ARGS;
         }
 
-        if (!ma__is_channel_map_valid(pConfig->capture.channelMap, pConfig->capture.channels)) {
+        if (!ma__is_channel_map_valid(pConfig->capture.pChannelMap, pConfig->capture.channels)) {
             return MA_INVALID_ARGS;
         }
     }
@@ -36653,7 +36663,7 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
             return MA_INVALID_ARGS;
         }
 
-        if (!ma__is_channel_map_valid(pConfig->playback.channelMap, pConfig->playback.channels)) {
+        if (!ma__is_channel_map_valid(pConfig->playback.pChannelMap, pConfig->playback.channels)) {
             return MA_INVALID_ARGS;
         }
     }
@@ -36687,13 +36697,13 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
     pDevice->capture.shareMode           = pConfig->capture.shareMode;
     pDevice->capture.format              = pConfig->capture.format;
     pDevice->capture.channels            = pConfig->capture.channels;
-    ma_channel_map_copy(pDevice->capture.channelMap, pConfig->capture.channelMap, pConfig->capture.channels);
+    ma_channel_map_copy_or_default(pDevice->capture.channelMap, ma_countof(pDevice->capture.channelMap), pConfig->capture.pChannelMap, pConfig->capture.channels);
     pDevice->capture.channelMixMode      = pConfig->capture.channelMixMode;
 
     pDevice->playback.shareMode          = pConfig->playback.shareMode;
     pDevice->playback.format             = pConfig->playback.format;
     pDevice->playback.channels           = pConfig->playback.channels;
-    ma_channel_map_copy(pDevice->playback.channelMap, pConfig->playback.channelMap, pConfig->playback.channels);
+    ma_channel_map_copy_or_default(pDevice->playback.channelMap, ma_countof(pDevice->playback.channelMap), pConfig->playback.pChannelMap, pConfig->playback.channels);
     pDevice->playback.channelMixMode     = pConfig->playback.channelMixMode;
 
 
@@ -36737,7 +36747,7 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
     descriptorPlayback.format                   = pConfig->playback.format;
     descriptorPlayback.channels                 = pConfig->playback.channels;
     descriptorPlayback.sampleRate               = pConfig->sampleRate;
-    ma_channel_map_copy(descriptorPlayback.channelMap, pConfig->playback.channelMap, pConfig->playback.channels);
+    ma_channel_map_copy_or_default(descriptorPlayback.channelMap, ma_countof(descriptorPlayback.channelMap), pConfig->playback.pChannelMap, pConfig->playback.channels);
     descriptorPlayback.periodSizeInFrames       = pConfig->periodSizeInFrames;
     descriptorPlayback.periodSizeInMilliseconds = pConfig->periodSizeInMilliseconds;
     descriptorPlayback.periodCount              = pConfig->periods;
@@ -36753,7 +36763,7 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
     descriptorCapture.format                    = pConfig->capture.format;
     descriptorCapture.channels                  = pConfig->capture.channels;
     descriptorCapture.sampleRate                = pConfig->sampleRate;
-    ma_channel_map_copy(descriptorCapture.channelMap, pConfig->capture.channelMap, pConfig->capture.channels);
+    ma_channel_map_copy_or_default(descriptorCapture.channelMap, ma_countof(descriptorCapture.channelMap), pConfig->capture.pChannelMap, pConfig->capture.channels);
     descriptorCapture.periodSizeInFrames        = pConfig->periodSizeInFrames;
     descriptorCapture.periodSizeInMilliseconds  = pConfig->periodSizeInMilliseconds;
     descriptorCapture.periodCount               = pConfig->periods;
@@ -45316,14 +45326,14 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
 
     if (pConfig->pChannelMapIn != NULL) {
         pConverter->pChannelMapIn = (ma_channel*)ma_offset_ptr(pHeap, heapLayout.channelMapInOffset);
-        ma_channel_map_copy_or_default(pConverter->pChannelMapIn, pConfig->pChannelMapIn, pConfig->channelsIn);
+        ma_channel_map_copy_or_default(pConverter->pChannelMapIn, pConfig->channelsIn, pConfig->pChannelMapIn, pConfig->channelsIn);
     } else {
         pConverter->pChannelMapIn = NULL;   /* Use default channel map. */
     }
 
     if (pConfig->pChannelMapOut != NULL) {
         pConverter->pChannelMapOut = (ma_channel*)ma_offset_ptr(pHeap, heapLayout.channelMapOutOffset);
-        ma_channel_map_copy_or_default(pConverter->pChannelMapOut, pConfig->pChannelMapOut, pConfig->channelsOut);
+        ma_channel_map_copy_or_default(pConverter->pChannelMapOut, pConfig->channelsOut, pConfig->pChannelMapOut, pConfig->channelsOut);
     } else {
         pConverter->pChannelMapOut = NULL;  /* Use default channel map. */
     }
@@ -45861,6 +45871,28 @@ MA_API ma_result ma_channel_converter_process_pcm_frames(ma_channel_converter* p
             return ma_channel_converter_process_pcm_frames__weights(pConverter, pFramesOut, pFramesIn, frameCount);
         }
     }
+}
+
+MA_API ma_result ma_channel_converter_get_input_channel_map(const ma_channel_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap)
+{
+    if (pConverter == NULL || pChannelMap == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    ma_channel_map_copy_or_default(pChannelMap, channelMapCap, pConverter->pChannelMapIn, pConverter->channelsIn);
+
+    return MA_SUCCESS;
+}
+
+MA_API ma_result ma_channel_converter_get_output_channel_map(const ma_channel_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap)
+{
+    if (pConverter == NULL || pChannelMap == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    ma_channel_map_copy_or_default(pChannelMap, channelMapCap, pConverter->pChannelMapOut, pConverter->channelsOut);
+
+    return MA_SUCCESS;
 }
 
 
@@ -46987,6 +47019,36 @@ MA_API ma_result ma_data_converter_get_expected_output_frame_count(const ma_data
     }
 }
 
+MA_API ma_result ma_data_converter_get_input_channel_map(const ma_data_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap)
+{
+    if (pConverter == NULL || pChannelMap == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (&pConverter->hasChannelConverter) {
+        ma_channel_converter_get_output_channel_map(&pConverter->channelConverter, pChannelMap, channelMapCap);
+    } else {
+        ma_get_standard_channel_map(ma_standard_channel_map_default, pChannelMap, channelMapCap, pConverter->channelsOut);
+    }
+
+    return MA_SUCCESS;
+}
+
+MA_API ma_result ma_data_converter_get_output_channel_map(const ma_data_converter* pConverter, ma_channel* pChannelMap, size_t channelMapCap)
+{
+    if (pConverter == NULL || pChannelMap == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    if (&pConverter->hasChannelConverter) {
+        ma_channel_converter_get_input_channel_map(&pConverter->channelConverter, pChannelMap, channelMapCap);
+    } else {
+        ma_get_standard_channel_map(ma_standard_channel_map_default, pChannelMap, channelMapCap, pConverter->channelsIn);
+    }
+
+    return MA_SUCCESS;
+}
+
 
 
 /**************************************************************************************************************************************************************
@@ -47753,7 +47815,7 @@ MA_API void ma_channel_map_copy(ma_channel* pOut, const ma_channel* pIn, ma_uint
     }
 }
 
-MA_API void ma_channel_map_copy_or_default(ma_channel* pOut, const ma_channel* pIn, ma_uint32 channels)
+MA_API void ma_channel_map_copy_or_default(ma_channel* pOut, size_t channelMapCapOut, const ma_channel* pIn, ma_uint32 channels)
 {
     if (pOut == NULL || channels == 0) {
         return;
@@ -47762,7 +47824,7 @@ MA_API void ma_channel_map_copy_or_default(ma_channel* pOut, const ma_channel* p
     if (pIn != NULL) {
         ma_channel_map_copy(pOut, pIn, channels);
     } else {
-        ma_get_standard_channel_map(ma_standard_channel_map_default, pOut, channels, channels);
+        ma_get_standard_channel_map(ma_standard_channel_map_default, pOut, channelMapCapOut, channels);
     }
 }
 
@@ -52453,7 +52515,7 @@ MA_API ma_decoder_config ma_decoder_config_init(ma_format outputFormat, ma_uint3
     ma_decoder_config config;
     MA_ZERO_OBJECT(&config);
     config.format         = outputFormat;
-    config.channels       = ma_min(outputChannels, ma_countof(config.channelMap));
+    config.channels       = outputChannels;
     config.sampleRate     = outputSampleRate;
     config.resampling     = ma_resampler_config_init(ma_format_unknown, 0, 0, 0, ma_resample_algorithm_linear); /* Format/channels/rate doesn't matter here. */
     config.encodingFormat = ma_encoding_format_unknown;
@@ -52528,20 +52590,13 @@ static ma_result ma_decoder__init_data_converter(ma_decoder* pDecoder, const ma_
         pDecoder->outputSampleRate = pConfig->sampleRate;
     }
 
-    if (ma_channel_map_blank(pDecoder->outputChannels, pConfig->channelMap)) {
-        ma_get_standard_channel_map(ma_standard_channel_map_default, pDecoder->outputChannelMap, ma_countof(pDecoder->outputChannelMap), pDecoder->outputChannels);
-    } else {
-        MA_COPY_MEMORY(pDecoder->outputChannelMap, pConfig->channelMap, sizeof(pConfig->channelMap));
-    }
-
-
     converterConfig = ma_data_converter_config_init(
         internalFormat,     pDecoder->outputFormat,
         internalChannels,   pDecoder->outputChannels,
         internalSampleRate, pDecoder->outputSampleRate
     );
     converterConfig.pChannelMapIn          = internalChannelMap;
-    converterConfig.pChannelMapOut         = pDecoder->outputChannelMap;
+    converterConfig.pChannelMapOut         = pConfig->pChannelMap;
     converterConfig.channelMixMode         = pConfig->channelMixMode;
     converterConfig.ditherMode             = pConfig->ditherMode;
     converterConfig.allowDynamicSampleRate = MA_FALSE;   /* Never allow dynamic sample rate conversion. Setting this to true will disable passthrough optimizations. */
@@ -56424,7 +56479,7 @@ MA_API ma_result ma_decoder_get_data_format(ma_decoder* pDecoder, ma_format* pFo
     }
 
     if (pChannelMap != NULL) {
-        ma_channel_map_copy_or_default(pChannelMap, pDecoder->outputChannelMap, (ma_uint32)ma_min(channelMapCap, pDecoder->outputChannels));
+        ma_data_converter_get_output_channel_map(&pDecoder->converter, pChannelMap, channelMapCap);
     }
 
     return MA_SUCCESS;
@@ -56576,10 +56631,9 @@ static ma_result ma_decoder__full_decode_and_uninit(ma_decoder* pDecoder, ma_dec
 
 
     if (pConfigOut != NULL) {
-        pConfigOut->format = pDecoder->outputFormat;
-        pConfigOut->channels = pDecoder->outputChannels;
+        pConfigOut->format     = pDecoder->outputFormat;
+        pConfigOut->channels   = pDecoder->outputChannels;
         pConfigOut->sampleRate = pDecoder->outputSampleRate;
-        ma_channel_map_copy(pConfigOut->channelMap, pDecoder->outputChannelMap, pDecoder->outputChannels);
     }
 
     if (ppPCMFramesOut != NULL) {
@@ -57420,16 +57474,31 @@ static ma_data_source_vtable g_ma_noise_data_source_vtable =
     NULL    /* onGetLength. No notion of a length for noise. */
 };
 
-MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, ma_noise* pNoise)
+
+#ifndef MA_PINK_NOISE_BIN_SIZE
+#define MA_PINK_NOISE_BIN_SIZE 16
+#endif
+
+typedef struct
 {
-    ma_result result;
-    ma_data_source_config dataSourceConfig;
+    size_t sizeInBytes;
+    struct
+    {
+        size_t binOffset;
+        size_t accumulationOffset;
+        size_t counterOffset;
+    } pink;
+    struct
+    {
+        size_t accumulationOffset;
+    } brownian;
+} ma_noise_heap_layout;
 
-    if (pNoise == NULL) {
-        return MA_INVALID_ARGS;
-    }
+static ma_result ma_noise_get_heap_layout(const ma_noise_config* pConfig, ma_noise_heap_layout* pHeapLayout)
+{
+    MA_ASSERT(pHeapLayout != NULL);
 
-    MA_ZERO_OBJECT(pNoise);
+    MA_ZERO_OBJECT(pHeapLayout);
 
     if (pConfig == NULL) {
         return MA_INVALID_ARGS;
@@ -57438,6 +57507,76 @@ MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, ma_noise* pNoise)
     if (pConfig->channels == 0) {
         return MA_INVALID_ARGS;
     }
+
+    pHeapLayout->sizeInBytes = 0;
+
+    /* Pink. */
+    if (pConfig->type == ma_noise_type_pink) {
+        /* bin */
+        pHeapLayout->pink.binOffset = pHeapLayout->sizeInBytes;
+        pHeapLayout->sizeInBytes += sizeof(double*) * pConfig->channels;
+        pHeapLayout->sizeInBytes += sizeof(double ) * pConfig->channels * MA_PINK_NOISE_BIN_SIZE;
+
+        /* accumulation */
+        pHeapLayout->pink.accumulationOffset = pHeapLayout->sizeInBytes;
+        pHeapLayout->sizeInBytes += sizeof(double) * pConfig->channels;
+
+        /* counter */
+        pHeapLayout->pink.counterOffset = pHeapLayout->sizeInBytes;
+        pHeapLayout->sizeInBytes += sizeof(ma_uint32) * pConfig->channels;
+    }
+
+    /* Brownian. */
+    if (pConfig->type == ma_noise_type_brownian) {
+        /* accumulation */
+        pHeapLayout->brownian.accumulationOffset = pHeapLayout->sizeInBytes;
+        pHeapLayout->sizeInBytes += sizeof(double) * pConfig->channels;
+    }
+
+    return MA_SUCCESS;
+}
+
+MA_API ma_result ma_noise_get_heap_size(const ma_noise_config* pConfig, size_t* pHeapSizeInBytes)
+{
+    ma_result result;
+    ma_noise_heap_layout heapLayout;
+    
+    if (pHeapSizeInBytes == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    *pHeapSizeInBytes = 0;
+
+    result = ma_noise_get_heap_layout(pConfig, &heapLayout);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    *pHeapSizeInBytes = heapLayout.sizeInBytes;
+
+    return MA_SUCCESS;
+}
+
+MA_API ma_result ma_noise_init_preallocated(const ma_noise_config* pConfig, void* pHeap, ma_noise* pNoise)
+{
+    ma_result result;
+    ma_noise_heap_layout heapLayout;
+    ma_data_source_config dataSourceConfig;
+    ma_uint32 iChannel;
+
+    if (pNoise == NULL) {
+        return MA_INVALID_ARGS;
+    }
+
+    MA_ZERO_OBJECT(pNoise);
+
+    result = ma_noise_get_heap_layout(pConfig, &heapLayout);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    pNoise->_pHeap = pHeap;
+    MA_ZERO_MEMORY(pNoise->_pHeap, heapLayout.sizeInBytes);
 
     dataSourceConfig = ma_data_source_config_init();
     dataSourceConfig.vtable = &g_ma_noise_data_source_vtable;
@@ -57451,15 +57590,20 @@ MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, ma_noise* pNoise)
     ma_lcg_seed(&pNoise->lcg, pConfig->seed);
 
     if (pNoise->config.type == ma_noise_type_pink) {
-        ma_uint32 iChannel;
+        pNoise->state.pink.bin          = (double**  )ma_offset_ptr(pHeap, heapLayout.pink.binOffset);
+        pNoise->state.pink.accumulation = (double*   )ma_offset_ptr(pHeap, heapLayout.pink.accumulationOffset);
+        pNoise->state.pink.counter      = (ma_uint32*)ma_offset_ptr(pHeap, heapLayout.pink.counterOffset);
+        
         for (iChannel = 0; iChannel < pConfig->channels; iChannel += 1) {
+            pNoise->state.pink.bin[iChannel]          = (double*)ma_offset_ptr(pHeap, heapLayout.pink.binOffset + (sizeof(double*) * pConfig->channels) + (sizeof(double) * MA_PINK_NOISE_BIN_SIZE * iChannel));
             pNoise->state.pink.accumulation[iChannel] = 0;
             pNoise->state.pink.counter[iChannel]      = 1;
         }
     }
 
     if (pNoise->config.type == ma_noise_type_brownian) {
-        ma_uint32 iChannel;
+        pNoise->state.brownian.accumulation = (double*)ma_offset_ptr(pHeap, heapLayout.brownian.accumulationOffset);
+
         for (iChannel = 0; iChannel < pConfig->channels; iChannel += 1) {
             pNoise->state.brownian.accumulation[iChannel] = 0;
         }
@@ -57468,13 +57612,47 @@ MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, ma_noise* pNoise)
     return MA_SUCCESS;
 }
 
-MA_API void ma_noise_uninit(ma_noise* pNoise)
+MA_API ma_result ma_noise_init(const ma_noise_config* pConfig, const ma_allocation_callbacks* pAllocationCallbacks, ma_noise* pNoise)
+{
+    ma_result result;
+    size_t heapSizeInBytes;
+    void* pHeap;
+
+    result = ma_noise_get_heap_size(pConfig, &heapSizeInBytes);
+    if (result != MA_SUCCESS) {
+        return result;
+    }
+
+    if (heapSizeInBytes > 0) {
+        pHeap = ma_malloc(heapSizeInBytes, pAllocationCallbacks);
+        if (pHeap == NULL) {
+            return MA_OUT_OF_MEMORY;
+        }
+    } else {
+        pHeap = NULL;
+    }
+
+    result = ma_noise_init_preallocated(pConfig, pHeap, pNoise);
+    if (result != MA_SUCCESS) {
+        ma_free(pHeap, pAllocationCallbacks);
+        return result;
+    }
+
+    pNoise->_ownsHeap = MA_TRUE;
+    return MA_SUCCESS;
+}
+
+MA_API void ma_noise_uninit(ma_noise* pNoise, const ma_allocation_callbacks* pAllocationCallbacks)
 {
     if (pNoise == NULL) {
         return;
     }
 
     ma_data_source_uninit(&pNoise->ds);
+
+    if (pNoise->_ownsHeap) {
+        ma_free(pNoise->_pHeap, pAllocationCallbacks);
+    }
 }
 
 MA_API ma_result ma_noise_set_amplitude(ma_noise* pNoise, double amplitude)
@@ -57617,7 +57795,7 @@ static MA_INLINE float ma_noise_f32_pink(ma_noise* pNoise, ma_uint32 iChannel)
     double binNext;
     unsigned int ibin;
 
-    ibin = ma_tzcnt32(pNoise->state.pink.counter[iChannel]) & (ma_countof(pNoise->state.pink.bin[0]) - 1);
+    ibin = ma_tzcnt32(pNoise->state.pink.counter[iChannel]) & (MA_PINK_NOISE_BIN_SIZE - 1);
 
     binPrev = pNoise->state.pink.bin[iChannel][ibin];
     binNext = ma_lcg_rand_f64(&pNoise->lcg);
@@ -65967,7 +66145,7 @@ MA_API ma_result ma_spatializer_listener_init_preallocated(const ma_spatializer_
     if (pConfig->pChannelMapOut == NULL) {
         ma_get_default_channel_map_for_spatializer(pListener->config.pChannelMapOut, pConfig->channelsOut, pConfig->channelsOut);
     } else {
-        ma_channel_map_copy_or_default(pListener->config.pChannelMapOut, pConfig->pChannelMapOut, pConfig->channelsOut);
+        ma_channel_map_copy_or_default(pListener->config.pChannelMapOut, pConfig->channelsOut, pConfig->pChannelMapOut, pConfig->channelsOut);
     }
 
     return MA_SUCCESS;
@@ -66306,7 +66484,7 @@ MA_API ma_result ma_spatializer_init_preallocated(const ma_spatializer_config* p
     /* Channel map. This will be on the heap. */
     if (pConfig->pChannelMapIn != NULL) {
         pSpatializer->config.pChannelMapIn = (ma_channel*)ma_offset_ptr(pHeap, heapLayout.channelMapInOffset);
-        ma_channel_map_copy_or_default(pSpatializer->config.pChannelMapIn, pConfig->pChannelMapIn, pSpatializer->config.channelsIn);
+        ma_channel_map_copy_or_default(pSpatializer->config.pChannelMapIn, pSpatializer->config.channelsIn, pConfig->pChannelMapIn, pSpatializer->config.channelsIn);
     }
 
     /* New channel gains for output channels. */
