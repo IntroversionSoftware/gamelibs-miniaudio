@@ -47237,7 +47237,7 @@ MA_API ma_result ma_data_converter_get_input_channel_map(const ma_data_converter
         return MA_INVALID_ARGS;
     }
 
-    if (&pConverter->hasChannelConverter) {
+    if (pConverter->hasChannelConverter == MA_TRUE) {
         ma_channel_converter_get_output_channel_map(&pConverter->channelConverter, pChannelMap, channelMapCap);
     } else {
         ma_channel_map_init_standard(ma_standard_channel_map_default, pChannelMap, channelMapCap, pConverter->channelsOut);
@@ -47252,7 +47252,7 @@ MA_API ma_result ma_data_converter_get_output_channel_map(const ma_data_converte
         return MA_INVALID_ARGS;
     }
 
-    if (&pConverter->hasChannelConverter) {
+    if (pConverter->hasChannelConverter == MA_TRUE) {
         ma_channel_converter_get_input_channel_map(&pConverter->channelConverter, pChannelMap, channelMapCap);
     } else {
         ma_channel_map_init_standard(ma_standard_channel_map_default, pChannelMap, channelMapCap, pConverter->channelsIn);
