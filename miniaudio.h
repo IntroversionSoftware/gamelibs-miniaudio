@@ -9013,6 +9013,7 @@ typedef struct
     MA_ATOMIC ma_uint64 tail;   /* The last item in the list. Required for appending to the end of the list. */
 #ifndef MA_NO_THREADING
     ma_semaphore sem;           /* Only used when MA_RESOURCE_MANAGER_JOB_QUEUE_FLAG_NON_BLOCKING is unset. */
+    ma_spinlock lock;
 #endif
     ma_slot_allocator allocator;
     ma_resource_manager_job* pJobs;
@@ -61585,9 +61586,12 @@ MA_API ma_result ma_resource_manager_job_queue_post(ma_resource_manager_job_queu
         return MA_INVALID_ARGS;
     }
 
+    ma_spinlock_lock(&pQueue->lock);
+
     /* We need a new slot. */
     result = ma_slot_allocator_alloc(&pQueue->allocator, &slot);
     if (result != MA_SUCCESS) {
+        ma_spinlock_unlock(&pQueue->lock);
         return result;  /* Probably ran out of slots. If so, MA_OUT_OF_MEMORY will be returned. */
     }
 
@@ -61617,6 +61621,7 @@ MA_API ma_result ma_resource_manager_job_queue_post(ma_resource_manager_job_queu
     }
     ma_resource_manager_job_queue_cas(&pQueue->tail, tail, slot);
 
+    ma_spinlock_unlock(&pQueue->lock);
 
     /* Signal the semaphore as the last step if we're using synchronous mode. */
     if ((pQueue->flags & MA_RESOURCE_MANAGER_JOB_QUEUE_FLAG_NON_BLOCKING) == 0) {
@@ -61657,6 +61662,8 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
         #endif
     }
 
+    ma_spinlock_lock(&pQueue->lock);
+
     /* Now we need to remove the root item from the list. This must be done without locking. */
     for (;;) {
         head = c89atomic_load_64(&pQueue->head);
@@ -61666,6 +61673,7 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
         if (ma_resource_manager_job_toc_to_allocation(head) == ma_resource_manager_job_toc_to_allocation(c89atomic_load_64(&pQueue->head))) {
             if (ma_resource_manager_job_extract_slot(head) == ma_resource_manager_job_extract_slot(tail)) {
                 if (ma_resource_manager_job_extract_slot(next) == 0xFFFF) {
+                    ma_spinlock_unlock(&pQueue->lock);
                     return MA_NO_DATA_AVAILABLE;
                 }
                 ma_resource_manager_job_queue_cas(&pQueue->tail, tail, next);
@@ -61679,6 +61687,8 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
     }
 
     ma_slot_allocator_free(&pQueue->allocator, head);
+
+    ma_spinlock_unlock(&pQueue->lock);
 
     /*
     If it's a quit job make sure it's put back on the queue to ensure other threads have an opportunity to detect it and terminate naturally. We
