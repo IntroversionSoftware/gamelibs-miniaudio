@@ -64935,15 +64935,15 @@ static ma_result ma_resource_manager_process_job__load_data_buffer_node(ma_resou
     MA_ASSERT(pDataBufferNode != NULL);
     MA_ASSERT(pDataBufferNode->isDataOwnedByResourceManager == MA_TRUE);  /* The data should always be owned by the resource manager. */
 
+    /* The data buffer is not getting deleted, but we may be getting executed out of order. If so, we need to push the job back onto the queue and return. */
+    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Attempting to execute out of order. Probably interleaved with a MA_RESOURCE_MANAGER_JOB_FREE_DATA_BUFFER job. */
+    }
+
     /* First thing we need to do is check whether or not the data buffer is getting deleted. If so we just abort. */
     if (ma_resource_manager_data_buffer_node_result(pDataBufferNode) != MA_BUSY) {
         result = ma_resource_manager_data_buffer_node_result(pDataBufferNode);    /* The data buffer may be getting deleted before it's even been loaded. */
         goto done;
-    }
-
-    /* The data buffer is not getting deleted, but we may be getting executed out of order. If so, we need to push the job back onto the queue and return. */
-    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
-        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Attempting to execute out of order. Probably interleaved with a MA_RESOURCE_MANAGER_JOB_FREE_DATA_BUFFER job. */
     }
 
     /*
@@ -65109,14 +65109,14 @@ static ma_result ma_resource_manager_process_job__page_data_buffer_node(ma_resou
 
     pDataBufferNode = pJob->data.pageDataBufferNode.pDataBufferNode;
 
+    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
+
     /* Don't do any more decoding if the data buffer has started the uninitialization process. */
     if (ma_resource_manager_data_buffer_node_result(pDataBufferNode) != MA_BUSY) {
         result = ma_resource_manager_data_buffer_node_result(pDataBufferNode);
         goto done;
-    }
-
-    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
-        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
     /* We're ready to decode the next page. */
@@ -65293,13 +65293,13 @@ static ma_result ma_resource_manager_process_job__load_data_stream(ma_resource_m
 
     pDataStream = pJob->data.loadDataStream.pDataStream;
 
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
+
     if (ma_resource_manager_data_stream_result(pDataStream) != MA_BUSY) {
         result = MA_INVALID_OPERATION;  /* Most likely the data stream is being uninitialized. */
         goto done;
-    }
-
-    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
-        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
     /* We need to initialize the decoder first so we can determine the size of the pages. */
@@ -65413,14 +65413,14 @@ static ma_result ma_resource_manager_process_job__page_data_stream(ma_resource_m
     pDataStream = pJob->data.pageDataStream.pDataStream;
     MA_ASSERT(pDataStream != NULL);
 
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
+
     /* For streams, the status should be MA_SUCCESS. */
     if (ma_resource_manager_data_stream_result(pDataStream) != MA_SUCCESS) {
         result = MA_INVALID_OPERATION;
         goto done;
-    }
-
-    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
-        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
     ma_resource_manager_data_stream_fill_page(pDataStream, pJob->data.pageDataStream.pageIndex);
@@ -65442,14 +65442,14 @@ static ma_result ma_resource_manager_process_job__seek_data_stream(ma_resource_m
 
     MA_ASSERT(pDataStream != NULL);
 
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
+
     /* For streams the status should be MA_SUCCESS for this to do anything. */
     if (ma_resource_manager_data_stream_result(pDataStream) != MA_SUCCESS || pDataStream->isDecoderInitialized == MA_FALSE) {
         result = MA_INVALID_OPERATION;
         goto done;
-    }
-
-    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
-        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
     /*
