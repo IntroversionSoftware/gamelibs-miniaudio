@@ -9083,8 +9083,8 @@ struct ma_resource_manager_data_buffer_node
     ma_uint32 hashedName32;                         /* The hashed name. This is the key. */
     ma_uint32 refCount;
     MA_ATOMIC ma_result result;                     /* Result from asynchronous loading. When loading set to MA_BUSY. When fully loaded set to MA_SUCCESS. When deleting set to MA_UNAVAILABLE. */
-    ma_uint32 executionCounter;                     /* For allocating execution orders for jobs. */
-    ma_uint32 executionPointer;                     /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
+    MA_ATOMIC ma_uint32 executionCounter;           /* For allocating execution orders for jobs. */
+    MA_ATOMIC ma_uint32 executionPointer;           /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
     ma_bool32 isDataOwnedByResourceManager;         /* Set to true when the underlying data buffer was allocated the resource manager. Set to false if it is owned by the application (via ma_resource_manager_register_*()). */
     ma_resource_manager_data_supply data;
     ma_resource_manager_data_buffer_node* pParent;
@@ -9098,8 +9098,8 @@ struct ma_resource_manager_data_buffer
     ma_resource_manager* pResourceManager;          /* A pointer to the resource manager that owns this buffer. */
     ma_resource_manager_data_buffer_node* pNode;    /* The data node. This is reference counted and is what supplies the data. */
     ma_uint32 flags;                                /* The flags that were passed used to initialize the buffer. */
-    ma_uint32 executionCounter;                     /* For allocating execution orders for jobs. */
-    ma_uint32 executionPointer;                     /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
+    MA_ATOMIC ma_uint32 executionCounter;           /* For allocating execution orders for jobs. */
+    MA_ATOMIC ma_uint32 executionPointer;           /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
     ma_uint64 seekTargetInPCMFrames;                /* Only updated by the public API. Never written nor read from the job thread. */
     ma_bool32 seekToCursorOnNextRead;               /* On the next read we need to seek to the frame cursor. */
     MA_ATOMIC ma_result result;                     /* Keeps track of a result of decoding. Set to MA_BUSY while the buffer is still loading. Set to MA_SUCCESS when loading is finished successfully. Otherwise set to some other code. */
@@ -9124,8 +9124,8 @@ struct ma_resource_manager_data_stream
     ma_uint32 relativeCursor;               /* The playback cursor, relative to the current page. Only ever accessed by the public API. Never accessed by the job thread. */
     ma_uint64 absoluteCursor;               /* The playback cursor, in absolute position starting from the start of the file. */
     ma_uint32 currentPageIndex;             /* Toggles between 0 and 1. Index 0 is the first half of pPageData. Index 1 is the second half. Only ever accessed by the public API. Never accessed by the job thread. */
-    ma_uint32 executionCounter;             /* For allocating execution orders for jobs. */
-    ma_uint32 executionPointer;             /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
+    MA_ATOMIC ma_uint32 executionCounter;   /* For allocating execution orders for jobs. */
+    MA_ATOMIC ma_uint32 executionPointer;   /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
 
     /* Written by the public API, read by the job thread. */
     MA_ATOMIC ma_bool32 isLooping;          /* Whether or not the stream is looping. It's important to set the looping flag at the data stream level for smooth loop transitions. */
@@ -9149,9 +9149,9 @@ struct ma_resource_manager_data_source
         ma_resource_manager_data_stream stream;
     } backend;  /* Must be the first item because we need the first item to be the data source callbacks for the buffer or stream. */
 
-    ma_uint32 flags;                /* The flags that were passed in to ma_resource_manager_data_source_init(). */
-    ma_uint32 executionCounter;     /* For allocating execution orders for jobs. */
-    ma_uint32 executionPointer;     /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
+    ma_uint32 flags;                          /* The flags that were passed in to ma_resource_manager_data_source_init(). */
+    MA_ATOMIC ma_uint32 executionCounter;     /* For allocating execution orders for jobs. */
+    MA_ATOMIC ma_uint32 executionPointer;     /* For managing the order of execution for asynchronous jobs relating to this object. Incremented as jobs complete processing. */
 };
 
 typedef struct
@@ -64942,7 +64942,7 @@ static ma_result ma_resource_manager_process_job__load_data_buffer_node(ma_resou
     }
 
     /* The data buffer is not getting deleted, but we may be getting executed out of order. If so, we need to push the job back onto the queue and return. */
-    if (pJob->order != pDataBufferNode->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Attempting to execute out of order. Probably interleaved with a MA_RESOURCE_MANAGER_JOB_FREE_DATA_BUFFER job. */
     }
 
@@ -65080,7 +65080,7 @@ static ma_result ma_resource_manager_process_job__free_data_buffer_node(ma_resou
 
     MA_ASSERT(pDataBufferNode != NULL);
 
-    if (pJob->order != pDataBufferNode->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65115,7 +65115,7 @@ static ma_result ma_resource_manager_process_job__page_data_buffer_node(ma_resou
         goto done;
     }
 
-    if (pJob->order != pDataBufferNode->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataBufferNode->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65186,7 +65186,7 @@ static ma_result ma_resource_manager_process_job__load_data_buffer(ma_resource_m
 
     MA_ASSERT(pDataBuffer != NULL);
 
-    if (pJob->order != pDataBuffer->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataBuffer->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Attempting to execute out of order. Probably interleaved with a MA_RESOURCE_MANAGER_JOB_FREE_DATA_BUFFER job. */
     }
 
@@ -65262,7 +65262,7 @@ static ma_result ma_resource_manager_process_job__free_data_buffer(ma_resource_m
 
     MA_ASSERT(pDataBuffer != NULL);
 
-    if (pJob->order != pDataBuffer->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataBuffer->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65298,7 +65298,7 @@ static ma_result ma_resource_manager_process_job__load_data_stream(ma_resource_m
         goto done;
     }
 
-    if (pJob->order != pDataStream->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65375,7 +65375,7 @@ static ma_result ma_resource_manager_process_job__free_data_stream(ma_resource_m
     /* If our status is not MA_UNAVAILABLE we have a bug somewhere. */
     MA_ASSERT(ma_resource_manager_data_stream_result(pDataStream) == MA_UNAVAILABLE);
 
-    if (pJob->order != pDataStream->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65419,7 +65419,7 @@ static ma_result ma_resource_manager_process_job__page_data_stream(ma_resource_m
         goto done;
     }
 
-    if (pJob->order != pDataStream->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
@@ -65448,7 +65448,7 @@ static ma_result ma_resource_manager_process_job__seek_data_stream(ma_resource_m
         goto done;
     }
 
-    if (pJob->order != pDataStream->executionPointer) {
+    if (pJob->order != c89atomic_load_i32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
