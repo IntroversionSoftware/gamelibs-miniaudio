@@ -39517,7 +39517,7 @@ MA_API ma_result ma_slot_allocator_alloc(ma_slot_allocator* pAllocator, ma_uint6
         }
 
         /* We weren't able to find a slot. If it's because we've reached our capacity we need to return MA_OUT_OF_MEMORY. Otherwise we need to do another iteration and try again. */
-        if (pAllocator->count < pAllocator->capacity) {
+        if (c89atomic_load_32(&pAllocator->count) < pAllocator->capacity) {
             ma_yield();
         } else {
             return MA_OUT_OF_MEMORY;
@@ -66009,6 +66009,13 @@ static ma_result ma_resource_manager_process_job__free_data_buffer_node(ma_resou
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
+    /* This job should be the final one queued for the data buffer node. */
+    if (pJob->order != c89atomic_load_32(&pDataBufferNode->executionCounter) - 1) {
+        pJob->order = ma_resource_manager_data_buffer_node_next_execution_order(pDataBufferNode);
+        c89atomic_fetch_add_32(&pDataBufferNode->executionPointer, 1);
+        return ma_resource_manager_post_job(pResourceManager, pJob);
+    }
+
     ma_resource_manager_data_buffer_node_free(pResourceManager, pDataBufferNode);
 
     /* The event needs to be signalled last. */
@@ -66163,7 +66170,7 @@ static ma_result ma_resource_manager_process_job__load_data_buffer(ma_resource_m
 
 done:
     /* Only move away from a busy code so that we don't trash any existing error codes. */
-    c89atomic_compare_and_swap_i32(&pJob->data.loadDataBuffer.pDataBuffer->result, MA_BUSY, result);
+    c89atomic_compare_and_swap_i32(&pDataBuffer->result, MA_BUSY, result);
 
     /* Only signal the other threads after the result has been set just for cleanliness sake. */
     if (pJob->data.loadDataBuffer.pDoneNotification != NULL) {
@@ -66204,6 +66211,13 @@ static ma_result ma_resource_manager_process_job__free_data_buffer(ma_resource_m
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
     }
 
+    /* This job should be the final one queued for the data buffer. */
+    if (pJob->order != c89atomic_load_32(&pDataBuffer->executionCounter) - 1) {
+        pJob->order = ma_resource_manager_data_buffer_next_execution_order(pDataBuffer);
+        c89atomic_fetch_add_32(&pDataBuffer->executionPointer, 1);
+        return ma_resource_manager_post_job(pResourceManager, pJob);
+    }
+
     ma_resource_manager_data_buffer_uninit_internal(pDataBuffer);
 
     /* The event needs to be signalled last. */
@@ -66231,6 +66245,10 @@ static ma_result ma_resource_manager_process_job__load_data_stream(ma_resource_m
 
     pDataStream = pJob->data.loadDataStream.pDataStream;
     MA_ASSERT(pDataStream != NULL);
+
+    if (pJob->order != c89atomic_load_32(&pDataStream->executionPointer)) {
+        return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
 
     if (pJob->order != c89atomic_load_32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
@@ -66315,6 +66333,13 @@ static ma_result ma_resource_manager_process_job__free_data_stream(ma_resource_m
 
     if (pJob->order != c89atomic_load_32(&pDataStream->executionPointer)) {
         return ma_resource_manager_post_job(pResourceManager, pJob);    /* Out of order. */
+    }
+
+    /* This job should be the final one queued for the data stream. */
+    if (pJob->order != c89atomic_load_32(&pDataStream->executionCounter) - 1) {
+        pJob->order = ma_resource_manager_data_stream_next_execution_order(pDataStream);
+        c89atomic_fetch_add_32(&pDataStream->executionPointer, 1);
+        return ma_resource_manager_post_job(pResourceManager, pJob);
     }
 
     /* If our status is not MA_UNAVAILABLE we have a bug somewhere. */
