@@ -38992,7 +38992,7 @@ MA_API ma_result ma_slot_allocator_alloc(ma_slot_allocator* pAllocator, ma_uint6
         }
 
         /* We weren't able to find a slot. If it's because we've reached our capacity we need to return MA_OUT_OF_MEMORY. Otherwise we need to do another iteration and try again. */
-        if (pAllocator->count < pAllocator->capacity) {
+        if (c89atomic_load_32(&pAllocator->count) < pAllocator->capacity) {
             ma_yield();
         } else {
             return MA_OUT_OF_MEMORY;
@@ -39021,7 +39021,7 @@ MA_API ma_result ma_slot_allocator_free(ma_slot_allocator* pAllocator, ma_uint64
 
     MA_ASSERT(iBit < 32);   /* This must be true due to the logic we used to actually calculate it. */
 
-    while (pAllocator->count > 0) {
+    while (c89atomic_load_i32(&pAllocator->count) > 0) {
         /* CAS */
         ma_uint32 oldBitfield;
         ma_uint32 newBitfield;
