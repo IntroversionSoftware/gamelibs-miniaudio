@@ -9,6 +9,8 @@ Documentation: https://miniaud.io/docs
 GitHub:        https://github.com/mackron/miniaudio
 */
 
+#define DARWINIA_HACK
+
 /*
 1. Introduction
 ===============
@@ -9013,6 +9015,9 @@ typedef struct
     MA_ATOMIC ma_uint64 tail;   /* The last item in the list. Required for appending to the end of the list. */
 #ifndef MA_NO_THREADING
     ma_semaphore sem;           /* Only used when MA_RESOURCE_MANAGER_JOB_QUEUE_FLAG_NON_BLOCKING is unset. */
+#ifdef DARWINIA_HACK
+    ma_spinlock lock;
+#endif
 #endif
     ma_slot_allocator allocator;
     ma_resource_manager_job* pJobs;
@@ -61596,9 +61601,16 @@ MA_API ma_result ma_resource_manager_job_queue_post(ma_resource_manager_job_queu
         return MA_INVALID_ARGS;
     }
 
+#ifdef DARWINIA_HACK
+    ma_spinlock_lock(&pQueue->lock);
+#endif
+
     /* We need a new slot. */
     result = ma_slot_allocator_alloc(&pQueue->allocator, &slot);
     if (result != MA_SUCCESS) {
+#ifdef DARWINIA_HACK
+        ma_spinlock_unlock(&pQueue->lock);
+#endif
         return result;  /* Probably ran out of slots. If so, MA_OUT_OF_MEMORY will be returned. */
     }
 
@@ -61628,6 +61640,9 @@ MA_API ma_result ma_resource_manager_job_queue_post(ma_resource_manager_job_queu
     }
     ma_resource_manager_job_queue_cas(&pQueue->tail, tail, slot);
 
+#ifdef DARWINIA_HACK
+    ma_spinlock_unlock(&pQueue->lock);
+#endif
 
     /* Signal the semaphore as the last step if we're using synchronous mode. */
     if ((pQueue->flags & MA_RESOURCE_MANAGER_JOB_QUEUE_FLAG_NON_BLOCKING) == 0) {
@@ -61668,6 +61683,10 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
         #endif
     }
 
+#ifdef DARWINIA_HACK
+    ma_spinlock_lock(&pQueue->lock);
+#endif
+
     /* Now we need to remove the root item from the list. This must be done without locking. */
     for (;;) {
         head = c89atomic_load_64(&pQueue->head);
@@ -61691,6 +61710,10 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
     }
 
     ma_slot_allocator_free(&pQueue->allocator, head);
+
+#ifdef DARWINIA_HACK
+    ma_spinlock_unlock(&pQueue->lock);
+#endif
 
     /*
     If it's a quit job make sure it's put back on the queue to ensure other threads have an opportunity to detect it and terminate naturally. We
