@@ -61677,7 +61677,8 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
         if (ma_resource_manager_job_toc_to_allocation(head) == ma_resource_manager_job_toc_to_allocation(c89atomic_load_64(&pQueue->head))) {
             if (ma_resource_manager_job_extract_slot(head) == ma_resource_manager_job_extract_slot(tail)) {
                 if (ma_resource_manager_job_extract_slot(next) == 0xFFFF) {
-                    return MA_NO_DATA_AVAILABLE;
+                    /* Try again, we shouldn't have woken spuriously */
+                    continue;
                 }
                 ma_resource_manager_job_queue_cas(&pQueue->tail, tail, next);
             } else {
