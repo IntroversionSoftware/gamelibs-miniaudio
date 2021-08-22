@@ -16528,6 +16528,11 @@ static ma_result ma_device_audio_thread__default_read_write(ma_device* pDevice)
                         }
                     }
 
+                    /* Make sure we don't get stuck in the inner loop. */
+                    if (capturedDeviceFramesProcessed == 0) {
+                        break;
+                    }
+
                     totalCapturedDeviceFramesProcessed += capturedDeviceFramesProcessed;
                 }
             } break;
@@ -16548,6 +16553,11 @@ static ma_result ma_device_audio_thread__default_read_write(ma_device* pDevice)
                     result = pDevice->pContext->callbacks.onDeviceRead(pDevice, capturedDeviceData, framesToReadThisIteration, &framesProcessed);
                     if (result != MA_SUCCESS) {
                         exitLoop = MA_TRUE;
+                        break;
+                    }
+
+                    /* Make sure we don't get stuck in the inner loop. */
+                    if (framesProcessed == 0) {
                         break;
                     }
 
@@ -16575,6 +16585,11 @@ static ma_result ma_device_audio_thread__default_read_write(ma_device* pDevice)
                     result = pDevice->pContext->callbacks.onDeviceWrite(pDevice, playbackDeviceData, framesToWriteThisIteration, &framesProcessed);
                     if (result != MA_SUCCESS) {
                         exitLoop = MA_TRUE;
+                        break;
+                    }
+
+                    /* Make sure we don't get stuck in the inner loop. */
+                    if (framesProcessed == 0) {
                         break;
                     }
 
@@ -61635,7 +61650,7 @@ MA_API ma_result ma_resource_manager_job_queue_post(ma_resource_manager_job_queu
     /* The job is stored in memory so now we need to add it to our linked list. We only ever add items to the end of the list. */
     for (;;) {
         tail = c89atomic_load_64(&pQueue->tail);
-        next = pQueue->pJobs[ma_resource_manager_job_extract_slot(tail)].next;
+        next = c89atomic_load_64(&pQueue->pJobs[ma_resource_manager_job_extract_slot(tail)].next);
 
         if (ma_resource_manager_job_toc_to_allocation(tail) == ma_resource_manager_job_toc_to_allocation(c89atomic_load_64(&pQueue->tail))) {
             if (ma_resource_manager_job_extract_slot(next) == 0xFFFF) {
@@ -61700,17 +61715,17 @@ MA_API ma_result ma_resource_manager_job_queue_next(ma_resource_manager_job_queu
     for (;;) {
         head = c89atomic_load_64(&pQueue->head);
         tail = c89atomic_load_64(&pQueue->tail);
-        next = pQueue->pJobs[ma_resource_manager_job_extract_slot(head)].next;
+        next = c89atomic_load_64(&pQueue->pJobs[ma_resource_manager_job_extract_slot(head)].next);
 
         if (ma_resource_manager_job_toc_to_allocation(head) == ma_resource_manager_job_toc_to_allocation(c89atomic_load_64(&pQueue->head))) {
             if (ma_resource_manager_job_extract_slot(head) == ma_resource_manager_job_extract_slot(tail)) {
                 if (ma_resource_manager_job_extract_slot(next) == 0xFFFF) {
                     return MA_NO_DATA_AVAILABLE;
                 }
-                ma_resource_manager_job_queue_cas(&pQueue->tail, tail, next);
+                ma_resource_manager_job_queue_cas(&pQueue->tail, tail, ma_resource_manager_job_extract_slot(next));
             } else {
                 *pJob = pQueue->pJobs[ma_resource_manager_job_extract_slot(next)];
-                if (ma_resource_manager_job_queue_cas(&pQueue->head, head, next)) {
+                if (ma_resource_manager_job_queue_cas(&pQueue->head, head, ma_resource_manager_job_extract_slot(next))) {
                     break;
                 }
             }
