@@ -14087,7 +14087,7 @@ typedef unsigned char           c89atomic_bool;
         static C89ATOMIC_INLINE c89atomic_uint8 c89atomic_load_explicit_8(volatile const c89atomic_uint8* ptr, c89atomic_memory_order order)
         {
             c89atomic_uint8 result;
-            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange8, (volatile c89atomic_uint8*)ptr, 0, 0);
+            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange8, (volatile char *)ptr, 0, 0);
             return result;
         }
     #endif
@@ -14095,7 +14095,7 @@ typedef unsigned char           c89atomic_bool;
         static C89ATOMIC_INLINE c89atomic_uint16 c89atomic_load_explicit_16(volatile const c89atomic_uint16* ptr, c89atomic_memory_order order)
         {
             c89atomic_uint16 result;
-            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange16, (volatile c89atomic_uint16*)ptr, 0, 0);
+            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange16, (volatile short *)ptr, 0, 0);
             return result;
         }
     #endif
@@ -14103,7 +14103,7 @@ typedef unsigned char           c89atomic_bool;
         static C89ATOMIC_INLINE c89atomic_uint32 c89atomic_load_explicit_32(volatile const c89atomic_uint32* ptr, c89atomic_memory_order order)
         {
             c89atomic_uint32 result;
-            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange, (volatile c89atomic_uint32*)ptr, 0, 0);
+            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange, (volatile long *)ptr, 0, 0);
             return result;
         }
     #endif
@@ -14111,7 +14111,7 @@ typedef unsigned char           c89atomic_bool;
         static C89ATOMIC_INLINE c89atomic_uint64 c89atomic_load_explicit_64(volatile const c89atomic_uint64* ptr, c89atomic_memory_order order)
         {
             c89atomic_uint64 result;
-            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange64, (volatile c89atomic_uint64*)ptr, 0, 0);
+            _c89atomic_choose_intrinsic(order, result, _InterlockedCompareExchange64, (volatile long long *)ptr, 0, 0);
             return result;
         }
     #endif
