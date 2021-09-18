@@ -99,6 +99,8 @@ static size_t ma_libvorbis_vf_callback__read(void* pBufferOut, size_t size, size
 
     bytesToRead = size * count;
     result = pVorbis->onRead(pVorbis->pReadSeekTellUserData, pBufferOut, bytesToRead, &bytesRead);
+	if (result != MA_SUCCESS)
+		return 0;
 
     return bytesRead / size;
 }
