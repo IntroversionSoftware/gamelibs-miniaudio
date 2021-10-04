@@ -389,7 +389,7 @@ time which might be too expensive on the audio thread.
 
 If you want to load the sound asynchronously, you can specify the `MA_SOUND_FLAG_ASYNC` flag. This
 will result in `ma_sound_init_from_file()` returning quickly, but the sound will not start playing
-until sound has had some audio decoded.
+until the sound has had some audio decoded.
 
 The fourth parameter is a pointer to sound group. A sound group is used as a mechanism to organise
 sounds into groups which have their own effect processing and volume control. An example is a game
@@ -10526,7 +10526,7 @@ static void ma_sleep__posix(ma_uint32 milliseconds)
 }
 #endif
 
-static void ma_sleep(ma_uint32 milliseconds)
+static MA_INLINE void ma_sleep(ma_uint32 milliseconds)
 {
 #ifdef MA_WIN32
     ma_sleep__win32(milliseconds);
@@ -15795,7 +15795,7 @@ Timing
 *******************************************************************************/
 #ifdef MA_WIN32
     static LARGE_INTEGER g_ma_TimerFrequency;   /* <-- Initialized to zero since it's static. */
-    static void ma_timer_init(ma_timer* pTimer)
+    void ma_timer_init(ma_timer* pTimer)
     {
         LARGE_INTEGER counter;
 
@@ -15807,7 +15807,7 @@ Timing
         pTimer->counter = counter.QuadPart;
     }
 
-    static double ma_timer_get_time_in_seconds(ma_timer* pTimer)
+    double ma_timer_get_time_in_seconds(ma_timer* pTimer)
     {
         LARGE_INTEGER counter;
         if (!QueryPerformanceCounter(&counter)) {
@@ -69042,7 +69042,7 @@ MA_API ma_result ma_engine_node_init_preallocated(const ma_engine_node_config* p
     resamplerConfig = ma_linear_resampler_config_init(ma_format_f32, baseNodeConfig.pInputChannels[0], pEngineNode->sampleRate, ma_engine_get_sample_rate(pEngineNode->pEngine));
     resamplerConfig.lpfOrder = 0;    /* <-- Need to disable low-pass filtering for pitch shifting for now because there's cases where the biquads are becoming unstable. Need to figure out a better fix for this. */
 
-    result = ma_linear_resampler_init_preallocated(&resamplerConfig, ma_offset_ptr(pHeap, heapLayout.baseNodeOffset), &pEngineNode->resampler);
+    result = ma_linear_resampler_init_preallocated(&resamplerConfig, ma_offset_ptr(pHeap, heapLayout.resamplerOffset), &pEngineNode->resampler);
     if (result != MA_SUCCESS) {
         goto error1;
     }
