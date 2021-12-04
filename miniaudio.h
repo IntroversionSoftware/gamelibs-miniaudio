@@ -27485,7 +27485,7 @@ static ma_result ma_device_init__pulse(ma_device* pDevice, const ma_device_confi
             attr = *pActualAttr;
         }
 
-        pDescriptorPlayback->periodCount        = attr.maxlength / attr.tlength;
+        pDescriptorPlayback->periodCount        = ma_max(attr.maxlength / attr.tlength, 1);
         pDescriptorPlayback->periodSizeInFrames = attr.maxlength / ma_get_bytes_per_frame(pDescriptorPlayback->format, pDescriptorPlayback->channels) / pDescriptorPlayback->periodCount;
         ma_log_postf(ma_device_get_log(pDevice), MA_LOG_LEVEL_DEBUG, "[PulseAudio] Playback actual attr: maxlength=%d, tlength=%d, prebuf=%d, minreq=%d, fragsize=%d; internalPeriodSizeInFrames=%d\n", attr.maxlength, attr.tlength, attr.prebuf, attr.minreq, attr.fragsize, pDescriptorPlayback->periodSizeInFrames);
 
