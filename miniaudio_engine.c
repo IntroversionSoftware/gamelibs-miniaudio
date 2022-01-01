@@ -15,8 +15,7 @@
 #define MA_NO_RUNTIME_LINKING
 #endif
 
-#define MA_LOG_LEVEL MA_LOG_LEVEL_VERBOSE
-//#define MA_DEBUG_OUTPUT
+#define MA_DEBUG_OUTPUT
 
 #define MA_NO_MP3
 #define MA_NO_FLAC
