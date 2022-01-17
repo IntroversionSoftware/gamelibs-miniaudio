@@ -45035,7 +45035,7 @@ static ma_result ma_hpf_get_heap_layout(const ma_hpf_config* pConfig, ma_hpf_hea
 
     pHeapLayout->sizeInBytes = 0;
 
-    /* LPF 1 */
+    /* HPF 1 */
     pHeapLayout->hpf1Offset = pHeapLayout->sizeInBytes;
     for (ihpf1 = 0; ihpf1 < hpf1Count; ihpf1 += 1) {
         size_t hpf1HeapSizeInBytes;
@@ -45049,7 +45049,7 @@ static ma_result ma_hpf_get_heap_layout(const ma_hpf_config* pConfig, ma_hpf_hea
         pHeapLayout->sizeInBytes += sizeof(ma_hpf1) + hpf1HeapSizeInBytes;
     }
 
-    /* LPF 2*/
+    /* HPF 2*/
     pHeapLayout->hpf2Offset = pHeapLayout->sizeInBytes;
     for (ihpf2 = 0; ihpf2 < hpf2Count; ihpf2 += 1) {
         size_t hpf2HeapSizeInBytes;
@@ -45133,7 +45133,7 @@ static ma_result ma_hpf_reinit__internal(const ma_hpf_config* pConfig, void* pHe
 
             result = ma_hpf1_get_heap_size(&hpf1Config, &hpf1HeapSizeInBytes);
             if (result == MA_SUCCESS) {
-                result = ma_hpf1_init_preallocated(&hpf1Config, ma_offset_ptr(pHeap, heapLayout.hpf1Offset + (ihpf1 * (sizeof(ma_hpf1) + hpf1HeapSizeInBytes)) + sizeof(ma_hpf1)), &pHPF->pHPF1[ihpf1]);
+                result = ma_hpf1_init_preallocated(&hpf1Config, ma_offset_ptr(pHeap, heapLayout.hpf1Offset + (sizeof(ma_hpf1) * hpf1Count) + (ihpf1 * hpf1HeapSizeInBytes)), &pHPF->pHPF1[ihpf1]);
             }
         } else {
             result = ma_hpf1_reinit(&hpf1Config, &pHPF->pHPF1[ihpf1]);
@@ -45170,7 +45170,7 @@ static ma_result ma_hpf_reinit__internal(const ma_hpf_config* pConfig, void* pHe
 
             result = ma_hpf2_get_heap_size(&hpf2Config, &hpf2HeapSizeInBytes);
             if (result == MA_SUCCESS) {
-                result = ma_hpf2_init_preallocated(&hpf2Config, ma_offset_ptr(pHeap, heapLayout.hpf2Offset + (ihpf2 * (sizeof(ma_hpf2) + hpf2HeapSizeInBytes)) + sizeof(ma_hpf2)), &pHPF->pHPF2[ihpf2]);
+                result = ma_hpf2_init_preallocated(&hpf2Config, ma_offset_ptr(pHeap, heapLayout.hpf2Offset + (sizeof(ma_hpf2) * hpf2Count) + (ihpf2 * hpf2HeapSizeInBytes)), &pHPF->pHPF2[ihpf2]);
             }
         } else {
             result = ma_hpf2_reinit(&hpf2Config, &pHPF->pHPF2[ihpf2]);
@@ -45685,7 +45685,7 @@ static ma_result ma_bpf_reinit__internal(const ma_bpf_config* pConfig, void* pHe
 
             result = ma_bpf2_get_heap_size(&bpf2Config, &bpf2HeapSizeInBytes);
             if (result == MA_SUCCESS) {
-                result = ma_bpf2_init_preallocated(&bpf2Config, ma_offset_ptr(pHeap, heapLayout.bpf2Offset + (ibpf2 * (sizeof(ma_bpf2) + bpf2HeapSizeInBytes)) + sizeof(ma_bpf2)), &pBPF->pBPF2[ibpf2]);
+                result = ma_bpf2_init_preallocated(&bpf2Config, ma_offset_ptr(pHeap, heapLayout.bpf2Offset + (sizeof(ma_bpf2) * bpf2Count) + (ibpf2 * bpf2HeapSizeInBytes)), &pBPF->pBPF2[ibpf2]);
             }
         } else {
             result = ma_bpf2_reinit(&bpf2Config, &pBPF->pBPF2[ibpf2]);
@@ -70738,8 +70738,8 @@ static void ma_engine_node_process_pcm_frames__general(ma_engine_node* pEngineNo
             framesJustProcessedIn  = (ma_uint32)resampleFrameCountIn;
             framesJustProcessedOut = (ma_uint32)resampleFrameCountOut;
         } else {
-            framesJustProcessedIn  = framesAvailableIn;
-            framesJustProcessedOut = framesAvailableOut;
+            framesJustProcessedIn  = ma_min(framesAvailableIn, framesAvailableOut);
+            framesJustProcessedOut = framesJustProcessedIn; /* When no resampling is being performed, the number of output frames is the same as input frames. */
         }
 
         /* Fading. */
