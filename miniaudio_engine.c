@@ -4,13 +4,6 @@
 #define USE_STB_VORBIS
 #endif
 
-#if defined(USE_OGGVORBIS)
-#   ifndef OV_EXCLUDE_STATIC_CALLBACKS
-#	    define OV_EXCLUDE_STATIC_CALLBACKS
-#   endif
-#	include <vorbis/vorbisfile.h>
-#endif
-
 #ifdef __APPLE__
 #define MA_NO_RUNTIME_LINKING
 #endif
