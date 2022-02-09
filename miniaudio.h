@@ -3899,7 +3899,7 @@ typedef ma_uint16 wchar_t;
 /* SIMD alignment in bytes. Currently set to 32 bytes in preparation for future AVX optimizations. */
 #define MA_SIMD_ALIGNMENT  32
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || (defined(__clang__) && !defined(_MSC_VER))
     #if (__GNUC__ >= 4)
         #define _MA_DEPRECATE_DECL(_Text)  __attribute__((__deprecated__))
     #else
