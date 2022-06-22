@@ -3710,6 +3710,8 @@ See below for some tips on improving performance.
   is due to 64-bit file APIs not being available.
 */
 
+#include "TracyC.h"
+
 #ifndef miniaudio_h
 #define miniaudio_h
 
@@ -19375,6 +19377,8 @@ static ma_thread_result MA_THREADCALL ma_device_thread__null(void* pData)
     ma_device* pDevice = (ma_device*)pData;
     MA_ASSERT(pDevice != NULL);
 
+    TracyCSetThreadName("MiniAudio null device thread");
+
     for (;;) {  /* Keep the thread alive until the device is uninitialized. */
         ma_uint32 operation;
 
@@ -21129,6 +21133,8 @@ static ma_thread_result MA_THREADCALL ma_context_command_thread__wasapi(void* pU
     ma_result result;
     ma_context* pContext = (ma_context*)pUserData;
     MA_ASSERT(pContext != NULL);
+
+    TracyCSetThreadName("MiniAudio WASAPI command thread");
 
     for (;;) {
         ma_context_command__wasapi cmd;
@@ -40923,6 +40929,8 @@ static ma_thread_result MA_THREADCALL ma_worker_thread(void* pData)
     ma_device* pDevice = (ma_device*)pData;
     MA_ASSERT(pDevice != NULL);
 
+    TracyCSetThreadName("MiniAudio worker thread");
+
 #ifdef MA_WIN32
     ma_CoInitializeEx(pDevice->pContext, NULL, MA_COINIT_VALUE);
 #endif
@@ -41151,6 +41159,8 @@ static ma_thread_result MA_THREADCALL ma_device_job_thread_entry(void* pUserData
 {
     ma_device_job_thread* pJobThread = (ma_device_job_thread*)pUserData;
     MA_ASSERT(pJobThread != NULL);
+
+    TracyCSetThreadName("MiniAudio device job thread");
 
     for (;;) {
         ma_result result;
@@ -67205,6 +67215,8 @@ static ma_thread_result MA_THREADCALL ma_resource_manager_job_thread(void* pUser
 {
     ma_resource_manager* pResourceManager = (ma_resource_manager*)pUserData;
     MA_ASSERT(pResourceManager != NULL);
+
+    TracyCSetThreadName("MiniAudio resource manager job thread");
 
     for (;;) {
         ma_result result;
