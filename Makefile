@@ -40,7 +40,7 @@ HEADERS_INST := $(includedir)/miniaudio.h
 OBJECTS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(SOURCES))
 
 CFLAGS ?= -O2
-CFLAGS += -I$(prefix)/include -Iresearch
+CFLAGS += -I$(prefix)/include -Iresearch -I../tracy/public/tracy
 
 .PHONY: install
 
