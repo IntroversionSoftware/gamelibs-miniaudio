@@ -25,6 +25,10 @@ elif vorbis_decoder == 'stb'
     c_flags += ['-DUSE_STB_VORBIS']
 endif
 
+link_deps += [
+    dependency('tracy'),
+]
+
 incdirs = ['.', 'research']
 
 sources = [
