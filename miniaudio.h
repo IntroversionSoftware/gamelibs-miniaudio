@@ -70242,7 +70242,7 @@ MA_API void ma_debug_fill_pcm_frames_with_sine_wave(float* pFramesOut, ma_uint32
         #if defined(MA_DEBUG_OUTPUT)
         {
             #if _MSC_VER
-                #pragma message ("ma_debug_fill_pcm_frames_with_sine_wave() will do nothing because MA_NO_GENERATION is enabled.")
+                //#pragma message ("ma_debug_fill_pcm_frames_with_sine_wave() will do nothing because MA_NO_GENERATION is enabled.")
             #endif
         }
         #endif
