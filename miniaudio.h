@@ -6271,6 +6271,7 @@ typedef struct
 /* Backend enums must be in priority order. */
 typedef enum
 {
+    ma_backend_invalid,
     ma_backend_wasapi,
     ma_backend_dsound,
     ma_backend_winmm,
@@ -17248,6 +17249,7 @@ MA_API const char* ma_get_backend_name(ma_backend backend)
         case ma_backend_webaudio:   return "Web Audio";
         case ma_backend_custom:     return "Custom";
         case ma_backend_null:       return "Null";
+        case ma_backend_invalid:
         default:                    return "Unknown";
     }
 }
