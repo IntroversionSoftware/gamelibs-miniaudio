@@ -11900,9 +11900,9 @@ Standard Library Stuff
 
 #ifndef MA_ZERO_MEMORY
 #ifdef MA_WIN32
-#define MA_ZERO_MEMORY(p, sz) ZeroMemory((p), (sz))
+#define MA_ZERO_MEMORY(p, sz) if (p) do { ZeroMemory((p), (sz)); } while(0)
 #else
-#define MA_ZERO_MEMORY(p, sz) memset((p), 0, (sz))
+#define MA_ZERO_MEMORY(p, sz) if (p) do { memset((p), 0, (sz)); } while(0)
 #endif
 #endif
 
