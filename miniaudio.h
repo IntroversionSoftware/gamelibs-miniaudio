@@ -11905,6 +11905,8 @@ Standard Library Stuff
 
 static MA_INLINE void ma_zero_memory_default(void* p, size_t sz)
 {
+    if (!p)
+        return;
 #ifdef MA_WIN32
     ZeroMemory(p, sz);
 #else
