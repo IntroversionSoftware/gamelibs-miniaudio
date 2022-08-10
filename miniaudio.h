@@ -51557,6 +51557,36 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
                 }
             } break;
         }
+
+#if 0
+        /* Debug: print channel map weight table, in CSV format */
+        {
+            ma_uint32 iChannelOut, iChannelIn;
+
+            /* Print column headers, for the input channel map */
+            printf(",");
+            for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
+                const char* pChannelStr = ma_channel_position_to_string(ma_channel_map_get_channel(pConverter->pChannelMapIn, pConverter->channelsIn, iChannelIn));
+                printf("%s,", pChannelStr);
+            }
+            printf("\n");
+
+            for (iChannelOut = 0; iChannelOut < pConverter->channelsOut; ++iChannelOut) {
+                const ma_channel channelPosOut = ma_channel_map_get_channel(pConverter->pChannelMapOut, pConverter->channelsOut, iChannelOut);
+                const char *pChannelOutStr = ma_channel_position_to_string(channelPosOut);
+
+                /* Row label for the output channel*/
+                printf("%s,", pChannelOutStr);
+
+                /* Weights for each input channel */
+                for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
+                    printf("%.2f,", pConverter->weights.f32[iChannelIn][iChannelOut]);
+                }
+
+                printf("\n");
+            }
+        }
+#endif
     }
 
     return MA_SUCCESS;
