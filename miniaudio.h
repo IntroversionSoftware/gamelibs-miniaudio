@@ -5536,11 +5536,11 @@ The channel map buffer must have a capacity of at least `channels`.
 MA_API ma_bool32 ma_channel_map_is_blank(const ma_channel* pChannelMap, ma_uint32 channels);
 
 /*
-Helper for determining whether or not a channel is present in the given channel map.
+Helper for finding a channel position if is present in the given channel map. Returns index of that channel position, or -1 for not found.
 
 The channel map buffer must have a capacity of at least `channels`.
 */
-MA_API ma_bool32 ma_channel_map_contains_channel_position(ma_uint32 channels, const ma_channel* pChannelMap, ma_channel channelPosition);
+MA_API ma_int32 ma_channel_map_find_channel_position(ma_uint32 channels, const ma_channel* pChannelMap, ma_channel channelPosition);
 
 /*
 Generates a string representing the given channel map.
@@ -50596,7 +50596,7 @@ static ma_channel_conversion_path ma_channel_map_get_conversion_path(const ma_ch
         ma_bool32 areAllChannelPositionsPresent = MA_TRUE;
         for (iChannelIn = 0; iChannelIn < channelsIn; ++iChannelIn) {
             ma_bool32 isInputChannelPositionInOutput = MA_FALSE;
-            if (ma_channel_map_contains_channel_position(channelsOut, pChannelMapOut, ma_channel_map_get_channel(pChannelMapIn, channelsIn, iChannelIn))) {
+            if (ma_channel_map_find_channel_position(channelsOut, pChannelMapOut, ma_channel_map_get_channel(pChannelMapIn, channelsIn, iChannelIn)) != -1) {
                 isInputChannelPositionInOutput = MA_TRUE;
                 break;
             }
@@ -51308,12 +51308,29 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
             case ma_channel_mix_mode_rectangular:
             default:
             {
+                /* First set the weights for directly mappable channels. */
+                for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
+                    ma_channel channelPosIn = ma_channel_map_get_channel(pConverter->pChannelMapIn, pConverter->channelsIn, iChannelIn);
+                    ma_int32 iChannelMatch = ma_channel_map_find_channel_position(pConverter->channelsOut, pConverter->pChannelMapOut, channelPosIn);
+                    if (iChannelMatch != -1) {
+                        if (pConverter->format == ma_format_f32) {
+                            if (pConverter->weights.f32[iChannelIn][iChannelMatch] == 0) {
+                                pConverter->weights.f32[iChannelIn][iChannelMatch] = 1;
+                            }
+                        } else {
+                            if (pConverter->weights.s16[iChannelIn][iChannelMatch] == 0) {
+                                pConverter->weights.s16[iChannelIn][iChannelMatch] = ma_channel_converter_float_to_fixed(1);
+                            }
+                        }
+                    }
+                }
+
                 /* Unmapped input channels. */
                 for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
                     ma_channel channelPosIn = ma_channel_map_get_channel(pConverter->pChannelMapIn, pConverter->channelsIn, iChannelIn);
 
                     if (ma_is_spatial_channel_position(channelPosIn)) {
-                        if (!ma_channel_map_contains_channel_position(pConverter->channelsOut, pConverter->pChannelMapOut, channelPosIn)) {
+                        if (ma_channel_map_find_channel_position(pConverter->channelsOut, pConverter->pChannelMapOut, channelPosIn) == -1) {
                             for (iChannelOut = 0; iChannelOut < pConverter->channelsOut; ++iChannelOut) {
                                 ma_channel channelPosOut = ma_channel_map_get_channel(pConverter->pChannelMapOut, pConverter->channelsOut, iChannelOut);
 
@@ -51344,7 +51361,7 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
                     ma_channel channelPosOut = ma_channel_map_get_channel(pConverter->pChannelMapOut, pConverter->channelsOut, iChannelOut);
 
                     if (ma_is_spatial_channel_position(channelPosOut)) {
-                        if (!ma_channel_map_contains_channel_position(pConverter->channelsIn, pConverter->pChannelMapIn, channelPosOut)) {
+                        if (ma_channel_map_find_channel_position(pConverter->channelsIn, pConverter->pChannelMapIn, channelPosOut) == -1) {
                             for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
                                 ma_channel channelPosIn = ma_channel_map_get_channel(pConverter->pChannelMapIn, pConverter->channelsIn, iChannelIn);
 
@@ -53792,17 +53809,17 @@ MA_API ma_bool32 ma_channel_map_is_blank(const ma_channel* pChannelMap, ma_uint3
     return MA_TRUE;
 }
 
-MA_API ma_bool32 ma_channel_map_contains_channel_position(ma_uint32 channels, const ma_channel* pChannelMap, ma_channel channelPosition)
+MA_API ma_int32 ma_channel_map_find_channel_position(ma_uint32 channels, const ma_channel* pChannelMap, ma_channel channelPosition)
 {
     ma_uint32 iChannel;
 
     for (iChannel = 0; iChannel < channels; ++iChannel) {
         if (ma_channel_map_get_channel(pChannelMap, channels, iChannel) == channelPosition) {
-            return MA_TRUE;
+            return (ma_int32)iChannel;
         }
     }
 
-    return MA_FALSE;
+    return -1;
 }
 
 MA_API size_t ma_channel_map_to_string(const ma_channel* pChannelMap, ma_uint32 channels, char* pBufferOut, size_t bufferCap)
