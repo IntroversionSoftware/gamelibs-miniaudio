@@ -6529,6 +6529,14 @@ typedef enum
     ma_opensl_recording_preset_voice_unprocessed    /* SL_ANDROID_RECORDING_PRESET_UNPROCESSED */
 } ma_opensl_recording_preset;
 
+/* WASAPI audio thread priority characteristics. */
+typedef enum
+{
+    ma_wasapi_usage_default = 0,
+    ma_wasapi_usage_games,
+    ma_wasapi_usage_pro_audio,
+} ma_wasapi_usage;
+
 /* AAudio usage types. */
 typedef enum
 {
@@ -6670,6 +6678,7 @@ struct ma_device_config
 
     struct
     {
+        ma_wasapi_usage usage;         /* When configured, uses Avrt APIs to set the thread characteristics. */
         ma_bool8 noAutoConvertSRC;     /* When set to true, disables the use of AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM. */
         ma_bool8 noDefaultQualitySRC;  /* When set to true, disables the use of AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY. */
         ma_bool8 noAutoStreamRouting;  /* Disables automatic stream routing. */
@@ -6916,6 +6925,9 @@ struct ma_context
             ma_uint32 commandIndex;
             ma_uint32 commandCount;
             ma_context_command__wasapi commands[4];
+            ma_handle hAvrt;
+            ma_proc AvSetMmThreadCharacteristicsW;
+            ma_proc AvRevertMmThreadcharacteristics;
         } wasapi;
 #endif
 #ifdef MA_SUPPORT_DSOUND
@@ -7417,6 +7429,8 @@ struct ma_device
             ma_bool8 allowPlaybackAutoStreamRouting;
             ma_bool8 isDetachedPlayback;
             ma_bool8 isDetachedCapture;
+            ma_wasapi_usage usage;
+            void *hAvrtHandle;
         } wasapi;
 #endif
 #ifdef MA_SUPPORT_DSOUND
@@ -19822,6 +19836,10 @@ static MA_INLINE HRESULT ma_IAudioCaptureClient_GetBuffer(ma_IAudioCaptureClient
 static MA_INLINE HRESULT ma_IAudioCaptureClient_ReleaseBuffer(ma_IAudioCaptureClient* pThis, ma_uint32 numFramesRead)                 { return pThis->lpVtbl->ReleaseBuffer(pThis, numFramesRead); }
 static MA_INLINE HRESULT ma_IAudioCaptureClient_GetNextPacketSize(ma_IAudioCaptureClient* pThis, ma_uint32* pNumFramesInNextPacket)   { return pThis->lpVtbl->GetNextPacketSize(pThis, pNumFramesInNextPacket); }
 
+/* Avrt Functions */
+typedef HANDLE (WINAPI * MA_PFN_AvSetMmThreadCharacteristicsW)(LPCWSTR TaskName, LPDWORD TaskIndex);
+typedef BOOL   (WINAPI * MA_PFN_AvRevertMmThreadCharacteristics)(HANDLE AvrtHandle);
+
 #if !defined(MA_WIN32_DESKTOP) && !defined(MA_WIN32_GDK)
 #include <mmdeviceapi.h>
 typedef struct ma_completion_handler_uwp ma_completion_handler_uwp;
@@ -20173,6 +20191,18 @@ static ma_IMMNotificationClientVtbl g_maNotificationCientVtbl = {
     ma_IMMNotificationClient_OnPropertyValueChanged
 };
 #endif  /* MA_WIN32_DESKTOP */
+
+static LPCWSTR ma_to_usage_string__wasapi(ma_wasapi_usage usage)
+{
+    switch (usage) {
+    case ma_wasapi_usage_default: return NULL;
+    case ma_wasapi_usage_games: return L"Games";
+    case ma_wasapi_usage_pro_audio: return L"Pro Audio";
+    default: break;
+    }
+
+    return NULL;
+}
 
 #if defined(MA_WIN32_DESKTOP) || defined(MA_WIN32_GDK)
 typedef ma_IMMDevice ma_WASAPIDeviceInterface;
@@ -21623,6 +21653,7 @@ static ma_result ma_device_init__wasapi(ma_device* pDevice, const ma_device_conf
     MA_ASSERT(pDevice != NULL);
 
     MA_ZERO_OBJECT(&pDevice->wasapi);
+    pDevice->wasapi.usage                = pConfig->wasapi.usage;
     pDevice->wasapi.noAutoConvertSRC     = pConfig->wasapi.noAutoConvertSRC;
     pDevice->wasapi.noDefaultQualitySRC  = pConfig->wasapi.noDefaultQualitySRC;
     pDevice->wasapi.noHardwareOffloading = pConfig->wasapi.noHardwareOffloading;
@@ -21916,6 +21947,14 @@ static ma_result ma_device_start__wasapi(ma_device* pDevice)
 
     MA_ASSERT(pDevice != NULL);
 
+    if (pDevice->pContext->wasapi.hAvrt) {
+        LPCWSTR pTaskName = ma_to_usage_string__wasapi(pDevice->wasapi.usage);
+        if (pTaskName) {
+            DWORD idx = 0;
+            pDevice->wasapi.hAvrtHandle = ((MA_PFN_AvSetMmThreadCharacteristicsW)pDevice->pContext->wasapi.AvSetMmThreadCharacteristicsW)(pTaskName, &idx);
+        }
+    }
+
     if (pDevice->type == ma_device_type_capture || pDevice->type == ma_device_type_duplex || pDevice->type == ma_device_type_loopback) {
         hr = ma_IAudioClient_Start((ma_IAudioClient*)pDevice->wasapi.pAudioClientCapture);
         if (FAILED(hr)) {
@@ -21945,6 +21984,11 @@ static ma_result ma_device_stop__wasapi(ma_device* pDevice)
     HRESULT hr;
 
     MA_ASSERT(pDevice != NULL);
+
+    if (pDevice->wasapi.hAvrtHandle) {
+        ((MA_PFN_AvRevertMmThreadCharacteristics)pDevice->pContext->wasapi.AvRevertMmThreadcharacteristics)((HANDLE)pDevice->wasapi.hAvrtHandle);
+        pDevice->wasapi.hAvrtHandle = NULL;
+    }
 
     if (pDevice->type == ma_device_type_capture || pDevice->type == ma_device_type_duplex || pDevice->type == ma_device_type_loopback) {
         hr = ma_IAudioClient_Stop((ma_IAudioClient*)pDevice->wasapi.pAudioClientCapture);
@@ -22300,6 +22344,11 @@ static ma_result ma_context_uninit__wasapi(ma_context* pContext)
         ma_context_post_command__wasapi(pContext, &cmd);
         ma_thread_wait(&pContext->wasapi.commandThread);
 
+        if (pContext->wasapi.hAvrt) {
+            ma_dlclose(pContext, pContext->wasapi.hAvrt);
+            pContext->wasapi.hAvrt = NULL;
+        }
+
         /* Only after the thread has been terminated can we uninitialize the sync objects for the command thread. */
         ma_semaphore_uninit(&pContext->wasapi.commandSem);
         ma_mutex_uninit(&pContext->wasapi.commandLock);
@@ -22404,6 +22453,21 @@ static ma_result ma_context_init__wasapi(ma_context* pContext, const ma_context_
             ma_semaphore_uninit(&pContext->wasapi.commandSem);
             ma_mutex_uninit(&pContext->wasapi.commandLock);
             return result;
+        }
+
+        /* Optionally use the Avrt API to specify the audio thread's latency sensitivity requirements */
+        pContext->wasapi.hAvrt = ma_dlopen(pContext, "avrt.dll");
+        if (pContext->wasapi.hAvrt) {
+            pContext->wasapi.AvSetMmThreadCharacteristicsW = ma_dlsym(pContext, pContext->wasapi.hAvrt, "AvSetMmThreadCharacteristicsW");
+            pContext->wasapi.AvRevertMmThreadcharacteristics = ma_dlsym(pContext, pContext->wasapi.hAvrt, "AvRevertMmThreadCharacteristics");
+
+            /* If either function could not be found, disable use of avrt entirely. */
+            if (!pContext->wasapi.AvSetMmThreadCharacteristicsW || !pContext->wasapi.AvRevertMmThreadcharacteristics) {
+                pContext->wasapi.AvSetMmThreadCharacteristicsW = NULL;
+                pContext->wasapi.AvRevertMmThreadcharacteristics = NULL;
+                ma_dlclose(pContext, pContext->wasapi.hAvrt);
+                pContext->wasapi.hAvrt = NULL;
+            }
         }
     }
 
