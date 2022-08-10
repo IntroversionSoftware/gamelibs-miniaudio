@@ -4169,6 +4169,7 @@ typedef enum
 {
     ma_channel_mix_mode_rectangular = 0,   /* Simple averaging based on the plane(s) the channel is sitting on. */
     ma_channel_mix_mode_simple,            /* Drop excess channels; zeroed out extra channels. */
+    ma_channel_mix_mode_matched,           /* Only map directly matching input/output channel types. */
     ma_channel_mix_mode_custom_weights,    /* Use custom weights specified in ma_channel_router_config. */
     ma_channel_mix_mode_default = ma_channel_mix_mode_rectangular
 } ma_channel_mix_mode;
@@ -51314,6 +51315,26 @@ MA_API ma_result ma_channel_converter_init_preallocated(const ma_channel_convert
                     } else {
                         if (pConverter->weights.s16[iChannel][iChannel] == 0) {
                             pConverter->weights.s16[iChannel][iChannel] = ma_channel_converter_float_to_fixed(1);
+                        }
+                    }
+                }
+            } break;
+
+            case ma_channel_mix_mode_matched:
+            {
+                /* In matched mode, only set weights for channels that have exactly matching types, leave the rest at zero */
+                for (iChannelIn = 0; iChannelIn < pConverter->channelsIn; ++iChannelIn) {
+                    ma_channel channelPosIn = ma_channel_map_get_channel(pConverter->pChannelMapIn, pConverter->channelsIn, iChannelIn);
+                    ma_int32 iChannelMatch = ma_channel_map_find_channel_position(pConverter->channelsOut, pConverter->pChannelMapOut, channelPosIn);
+                    if (iChannelMatch != -1) {
+                        if (pConverter->format == ma_format_f32) {
+                            if (pConverter->weights.f32[iChannelIn][iChannelMatch] == 0) {
+                                pConverter->weights.f32[iChannelIn][iChannelMatch] = 1;
+                            }
+                        } else {
+                            if (pConverter->weights.s16[iChannelIn][iChannelMatch] == 0) {
+                                pConverter->weights.s16[iChannelIn][iChannelMatch] = ma_channel_converter_float_to_fixed(1);
+                            }
                         }
                     }
                 }
