@@ -15616,6 +15616,14 @@ static ma_result ma_thread_create__posix(ma_thread* pThread, ma_thread_priority 
 #endif
         }
 
+#ifdef MA_APPLE
+        if (priority < ma_thread_priority_normal) {
+            pthread_attr_set_qos_class_np(&attr, QOS_CLASS_BACKGROUND, 0);
+        } else {
+            pthread_attr_set_qos_class_np(&attr, QOS_CLASS_USER_INTERACTIVE, 0);
+        }
+#endif
+
         if (stackSize > 0) {
             pthread_attr_setstacksize(&attr, stackSize);
         }
