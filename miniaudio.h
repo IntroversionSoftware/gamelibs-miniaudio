@@ -22625,7 +22625,7 @@ static ma_result ma_device_write__wasapi(ma_device* pDevice, const void* pFrames
                     }
                 }
             }
-        } else {
+        } else if (pDevice->wasapi.pRenderClient != NULL) {
             /* We don't have a mapped data buffer so we'll need to get one. */
             HRESULT hr;
             ma_uint32 bufferSizeInFrames;
@@ -22656,6 +22656,9 @@ static ma_result ma_device_write__wasapi(ma_device* pDevice, const void* pFrames
                     break;
                 }
             }
+        } else {
+            result = MA_ERROR;
+            break;
         }
     }
 
