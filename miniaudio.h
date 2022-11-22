@@ -17703,7 +17703,7 @@ MA_API ma_result ma_get_backend_from_name(const char* pBackendName, ma_backend* 
     }
 
     for (iBackend = 0; iBackend < ma_countof(gBackendInfo); iBackend += 1) {
-        if (ma_strcmp(pBackendName, gBackendInfo[iBackend].pName) == 0) {
+        if (stricmp(pBackendName, gBackendInfo[iBackend].pName) == 0) {
             if (pBackend != NULL) {
                 *pBackend = gBackendInfo[iBackend].backend;
             }
