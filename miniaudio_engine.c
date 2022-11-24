@@ -122,3 +122,127 @@ ma_decoding_backend_vtable g_ma_decoding_backend_vtable_libvorbis = {
 	ma_decoding_backend_uninit__libvorbis
 };
 #endif
+
+#include <samplerate.h>
+
+typedef struct
+{
+	SRC_STATE *state;
+	double ratio;
+} ma_resampler_libsamplerate;
+
+#if 0
+ma_result ma_decoding_backend_get_heap_size__libsamplerate(void *pUserData, const ma_resampler_config *pConfig, size_t *pHeapSizeInBytes)
+{
+}
+#endif
+
+ma_result ma_decoding_backend_init__libsamplerate(void *pUserData, const ma_resampler_config *pConfig, void *pHeap, ma_resampling_backend **ppBackend)
+{
+	int err;
+	ma_resampler_libsamplerate *pResampler;
+
+	assert(pConfig->sampleRateIn > 0);
+	assert(pConfig->sampleRateOut > 0);
+
+	pResampler = (ma_resampler_libsamplerate *)malloc(sizeof(ma_resampler_libsamplerate));
+	pResampler->ratio = (double)pConfig->sampleRateOut / (double)pConfig->sampleRateIn;
+	pResampler->state = src_new(SRC_SINC_FASTEST, pConfig->channels, &err);
+	if (!pResampler->state || err) {
+		free(pResampler);
+		pResampler = NULL;
+		*ppBackend = NULL;
+		return MA_ERROR;
+	}
+	*ppBackend = (ma_resampling_backend *)pResampler;
+
+	return MA_SUCCESS;
+}
+
+void ma_decoding_backend_uninit__libsamplerate(void *pUserData, ma_resampling_backend *pBackend, const ma_allocation_callbacks *pAllocationCallbacks)
+{
+	ma_resampler_libsamplerate *pResampler = (ma_resampler_libsamplerate *)pBackend;
+	assert(pResampler->state);
+	src_delete(pResampler->state);
+	free(pResampler);
+}
+
+ma_result ma_decoding_backend_process__libsamplerate(void *pUserData, ma_resampling_backend *pBackend, const void *pFramesIn, ma_uint64 *pFrameCountIn, void *pFramesOut, ma_uint64 *pFrameCountOut)
+{
+	ma_resampler_libsamplerate *pResampler = (ma_resampler_libsamplerate *)pBackend;
+	int err;
+
+	SRC_DATA data = {0};
+	data.data_in = (const float *)pFramesIn;
+	data.data_out = (float *)pFramesOut;
+	data.input_frames = *pFrameCountIn;
+	data.output_frames = *pFrameCountOut;
+	data.src_ratio = pResampler->ratio;
+
+	err = src_process(pResampler->state, &data);
+	if (err != 0)
+		return MA_ERROR;
+
+	*pFrameCountOut = data.output_frames_gen;
+	*pFrameCountIn = data.input_frames_used;
+
+	return MA_SUCCESS;
+}
+
+ma_result ma_decoding_backend_set_rate__libsamplerate(void *pUserData, ma_resampling_backend *pBackend, ma_uint32 sampleRateIn, ma_uint32 sampleRateOut)
+{
+	ma_resampler_libsamplerate *pResampler = (ma_resampler_libsamplerate *)pBackend;
+	pResampler->ratio = (double)sampleRateOut / (double)sampleRateIn;
+	return MA_SUCCESS;
+}
+
+#if 0
+ma_result ma_decoding_backend_get_input_latency__libsamplerate(void *pUserData, ma_resampling_backend *pBackend)
+{
+}
+
+ma_result ma_decoding_backend_get_output_latency__libsamplerate(void *pUserData, ma_resampling_backend *pBackend)
+{
+}
+
+ma_result ma_decoding_backend_get_required_input_frame_count__libsamplerate(void *pUserData, ma_resampling_backend *pBackend, ma_uint64 outputFrameCount, ma_uint64* pInputFrameCount)
+{
+}
+
+ma_result ma_decoding_backend_get_expected_output_frame_count__libsamplerate(void *pUserData, ma_resampling_backend *pBackend, ma_uint64 inputFrameCount, ma_uint64* pOutputFrameCount)
+{
+}
+#endif
+
+ma_result ma_decoding_backend_reset__libsamplerate(void *pUserData, ma_resampling_backend *pBackend)
+{
+	ma_resampler_libsamplerate *pResampler = (ma_resampler_libsamplerate *)pBackend;
+	int rv = src_reset(pResampler->state);
+	if (rv != 0)
+		return MA_ERROR;
+	return MA_SUCCESS;
+}
+
+ma_resampling_backend_vtable g_ma_resampling_backend_vtable_libsamplerate = {
+#if 0
+	ma_decoding_backend_get_heap_size__libsamplerate,
+#else
+	NULL, /* onGetHeapSize */
+#endif
+	ma_decoding_backend_init__libsamplerate,
+	ma_decoding_backend_uninit__libsamplerate,
+	ma_decoding_backend_process__libsamplerate,
+	ma_decoding_backend_set_rate__libsamplerate,
+#if 0
+	ma_decoding_backend_get_input_latency__libsamplerate,
+	ma_decoding_backend_get_output_latency__libsamplerate,
+	ma_decoding_backend_get_required_input_frame_count__libsamplerate,
+	ma_decoding_backend_get_expected_output_frame_count__libsamplerate,
+#else
+	NULL, /* onGetInputLatency */
+	NULL, /* onGetOutputLatency */
+	NULL, /* onGetRequiredInputFrameCount */
+	NULL, /* onGetExpectedOutputFrameCount */
+#endif
+	ma_decoding_backend_reset__libsamplerate,
+};
