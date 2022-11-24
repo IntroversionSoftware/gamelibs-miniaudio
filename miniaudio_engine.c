@@ -127,6 +127,7 @@ ma_decoding_backend_vtable g_ma_decoding_backend_vtable_libvorbis = {
 };
 #endif
 
+#ifdef USE_LIBSAMPLERATE
 #include <samplerate.h>
 
 typedef struct
@@ -250,3 +251,4 @@ ma_resampling_backend_vtable g_ma_resampling_backend_vtable_libsamplerate = {
 #endif
 	ma_decoding_backend_reset__libsamplerate,
 };
+#endif
