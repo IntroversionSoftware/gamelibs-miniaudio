@@ -16,8 +16,9 @@
 #define MA_NO_CUSTOM
 #define MA_NO_ENCODING
 #define MA_NO_GENERATION
-#define MA_PREFER_AVX2
-#define MA_PREFER_NEON
+#define MA_NO_SSE2
+#define MA_NO_AVX2
+#define MA_NO_NEON
 
 #if defined(USE_OGGVORBIS)
 
