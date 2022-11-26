@@ -42016,7 +42016,7 @@ MA_API void ma_copy_and_apply_volume_factor_s32(ma_int32* pSamplesOut, const ma_
     }
 }
 
-MA_API void ma_copy_and_apply_volume_factor_f32(float* pSamplesOut, const float* pSamplesIn, ma_uint64 sampleCount, float factor)
+MA_API void ma_copy_and_apply_volume_factor_f32(float* MA_RESTRICT pSamplesOut, const float* MA_RESTRICT pSamplesIn, ma_uint64 sampleCount, float factor)
 {
     ma_uint64 iSample;
 
@@ -44586,7 +44586,8 @@ static MA_INLINE void ma_biquad_process_pcm_frame_f32__direct_form_2_transposed(
     const float a1 = pBQ->a1.f32;
     const float a2 = pBQ->a2.f32;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+#pragma clang loop unroll(disable)
     for (c = 0; c < channels; c += 1) {
         float r1 = pBQ->pR1[c].f32;
         float r2 = pBQ->pR2[c].f32;
@@ -44618,7 +44619,8 @@ static MA_INLINE void ma_biquad_process_pcm_frame_s16__direct_form_2_transposed(
     const ma_int32 a1 = pBQ->a1.s32;
     const ma_int32 a2 = pBQ->a2.s32;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+#pragma clang loop unroll(disable)
     for (c = 0; c < channels; c += 1) {
         ma_int32 r1 = pBQ->pR1[c].s32;
         ma_int32 r2 = pBQ->pR2[c].s32;
@@ -44892,22 +44894,23 @@ MA_API ma_result ma_lpf1_clear_cache(ma_lpf1* pLPF)
     return MA_SUCCESS;
 }
 
-static MA_INLINE void ma_lpf1_process_pcm_frame_f32(ma_lpf1* pLPF, float* pY, const float* pX)
+static MA_INLINE void ma_lpf1_process_pcm_frame_f32(ma_lpf1 *pLPF, float *pY, const float *pX)
 {
     ma_uint32 c;
     const ma_uint32 channels = pLPF->channels;
     const float a = pLPF->a.f32;
     const float b = 1 - a;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+#pragma clang loop unroll(disable)
     for (c = 0; c < channels; c += 1) {
         float r1 = pLPF->pR1[c].f32;
-        float x  = pX[c];
+        float x = pX[c];
         float y;
 
-        y = b*x + a*r1;
+        y = b * x + a * r1;
 
-        pY[c]           = y;
+        pY[c] = y;
         pLPF->pR1[c].f32 = y;
     }
 }
@@ -44919,7 +44922,8 @@ static MA_INLINE void ma_lpf1_process_pcm_frame_s16(ma_lpf1* pLPF, ma_int16* pY,
     const ma_int32 a = pLPF->a.s32;
     const ma_int32 b = ((1 << MA_BIQUAD_FIXED_POINT_SHIFT) - a);
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+#pragma clang loop unroll(disable)
     for (c = 0; c < channels; c += 1) {
         ma_int32 r1 = pLPF->pR1[c].s32;
         ma_int32 x  = pX[c];
@@ -45772,7 +45776,7 @@ static MA_INLINE void ma_hpf1_process_pcm_frame_f32(ma_hpf1* pHPF, float* pY, co
     const float a = 1 - pHPF->a.f32;
     const float b = 1 - a;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
     for (c = 0; c < channels; c += 1) {
         float r1 = pHPF->pR1[c].f32;
         float x  = pX[c];
@@ -45792,7 +45796,7 @@ static MA_INLINE void ma_hpf1_process_pcm_frame_s16(ma_hpf1* pHPF, ma_int16* pY,
     const ma_int32 a = ((1 << MA_BIQUAD_FIXED_POINT_SHIFT) - pHPF->a.s32);
     const ma_int32 b = ((1 << MA_BIQUAD_FIXED_POINT_SHIFT) - a);
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
     for (c = 0; c < channels; c += 1) {
         ma_int32 r1 = pHPF->pR1[c].s32;
         ma_int32 x  = pX[c];
@@ -47900,6 +47904,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
     ma_uint64 iFrame;
     ma_uint32 iChannel;
     ma_uint64 interpolatedFrameCount;
+    const ma_uint32 channels = pGainer->config.channels;
 
     MA_ASSERT(pGainer != NULL);
 
@@ -47939,12 +47944,12 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
             float a = (float)pGainer->t / pGainer->config.smoothTimeInFrames;
             float d = 1.0f / pGainer->config.smoothTimeInFrames;
 
-            if (pGainer->config.channels <= 32) {
+            if (channels <= 32) {
                 float pRunningGain[32];
                 float pRunningGainDelta[32];    /* Could this be heap-allocated as part of the ma_gainer object? */
 
                 /* Initialize the running gain. */
-                for (iChannel = 0; iChannel < pGainer->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     float t = (pGainer->pOldGains[iChannel] - pGainer->pNewGains[iChannel]) * pGainer->masterVolume;
                     pRunningGainDelta[iChannel] = t * d;
                     pRunningGain[iChannel] = (pGainer->pOldGains[iChannel] * pGainer->masterVolume) + (t * a);
@@ -47953,7 +47958,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                 iFrame = 0;
 
                 /* Optimized paths for common channel counts. This is mostly just experimenting with some SIMD ideas. It's not necessarily final. */
-                if (pGainer->config.channels == 2) {
+                if (channels == 2) {
                 #if defined(MA_SUPPORT_SSE2)
                     if (ma_has_sse2()) {
                         ma_uint64 unrolledLoopCount = interpolatedFrameCount >> 1;
@@ -48001,6 +48006,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
 
                         iFrame = unrolledLoopCount << 1;
                     #else
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 2; iChannel += 1) {
                                 pFramesOutF32[iFrame*2 + iChannel] = pFramesInF32[iFrame*2 + iChannel] * pRunningGain[iChannel];
@@ -48012,7 +48018,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                         }
                     #endif
                     }
-                } else if (pGainer->config.channels == 6) {
+                } else if (channels == 6) {
                 #if defined(MA_SUPPORT_SSE2)
                     if (ma_has_sse2()) {
                         /*
@@ -48045,6 +48051,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     } else
                 #endif
                     {
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 6; iChannel += 1) {
                                 pFramesOutF32[iFrame*6 + iChannel] = pFramesInF32[iFrame*6 + iChannel] * pRunningGain[iChannel];
@@ -48056,7 +48063,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                             }
                         }
                     }
-                } else if (pGainer->config.channels == 8) {
+                } else if (channels == 8) {
                     /* For 8 channels we can just go over frame by frame and do all eight channels as 2 separate 4x SIMD operations. */
                 #if defined(MA_SUPPORT_SSE2)
                     if (ma_has_sse2()) {
@@ -48076,6 +48083,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                 #endif
                     {
                         /* This is crafted so that it auto-vectorizes when compiled with Clang. */
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 8; iChannel += 1) {
                                 pFramesOutF32[iFrame*8 + iChannel] = pFramesInF32[iFrame*8 + iChannel] * pRunningGain[iChannel];
@@ -48089,17 +48097,21 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     }
                 }
 
+#pragma clang loop unroll(disable)
                 for (; iFrame < interpolatedFrameCount; iFrame += 1) {
-                    for (iChannel = 0; iChannel < pGainer->config.channels; iChannel += 1) {
-                        pFramesOutF32[iFrame*pGainer->config.channels + iChannel] = pFramesInF32[iFrame*pGainer->config.channels + iChannel] * pRunningGain[iChannel];
+#pragma clang loop vectorize(enable)
+                    for (iChannel = 0; iChannel < channels; iChannel += 1) {
+                        pFramesOutF32[iFrame*channels + iChannel] = pFramesInF32[iFrame*channels + iChannel] * pRunningGain[iChannel];
                         pRunningGain[iChannel] += pRunningGainDelta[iChannel];
                     }
                 }
             } else {
                 /* Slower path for extreme channel counts where we can't fit enough on the stack. We could also move this to the heap as part of the ma_gainer object which might even be better since it'll only be updated when the gains actually change. */
+#pragma clang loop unroll(disable)
                 for (iFrame = 0; iFrame < interpolatedFrameCount; iFrame += 1) {
-                    for (iChannel = 0; iChannel < pGainer->config.channels; iChannel += 1) {
-                        pFramesOutF32[iFrame*pGainer->config.channels + iChannel] = pFramesInF32[iFrame*pGainer->config.channels + iChannel] * ma_mix_f32_fast(pGainer->pOldGains[iChannel], pGainer->pNewGains[iChannel], a) * pGainer->masterVolume;
+#pragma clang loop vectorize(enable)
+                    for (iChannel = 0; iChannel < channels; iChannel += 1) {
+                        pFramesOutF32[iFrame*channels + iChannel] = pFramesInF32[iFrame*channels + iChannel] * ma_mix_f32_fast(pGainer->pOldGains[iChannel], pGainer->pNewGains[iChannel], a) * pGainer->masterVolume;
                     }
 
                     a += d;
@@ -48118,18 +48130,21 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
 
     /* All we need to do here is apply the new gains using an optimized path. */
     if (pFramesOut != NULL && pFramesIn != NULL) {
-        if (pGainer->config.channels <= 32) {
+        if (channels <= 32) {
             float gains[32];
-            for (iChannel = 0; iChannel < pGainer->config.channels; iChannel += 1) {
+#pragma clang loop unroll(disable)
+            for (iChannel = 0; iChannel < channels; iChannel += 1) {
                 gains[iChannel] = pGainer->pNewGains[iChannel] * pGainer->masterVolume;
             }
 
-            ma_copy_and_apply_volume_factor_per_channel_f32((float*)pFramesOut, (const float*)pFramesIn, frameCount, pGainer->config.channels, gains);
+            ma_copy_and_apply_volume_factor_per_channel_f32((float*)pFramesOut, (const float*)pFramesIn, frameCount, channels, gains);
         } else {
             /* Slow path. Too many channels to fit on the stack. Need to apply a master volume as a separate path. */
+#pragma clang loop unroll(disable)
             for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
-                for (iChannel = 0; iChannel < pGainer->config.channels; iChannel += 1) {
-                    ((float*)pFramesOut)[iFrame*pGainer->config.channels + iChannel] = ((const float*)pFramesIn)[iFrame*pGainer->config.channels + iChannel] * pGainer->pNewGains[iChannel] * pGainer->masterVolume;
+#pragma clang loop vectorize(enable)
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
+                    ((float*)pFramesOut)[iFrame*channels + iChannel] = ((const float*)pFramesIn)[iFrame*channels + iChannel] * pGainer->pNewGains[iChannel] * pGainer->masterVolume;
                 }
             }
         }
@@ -50490,7 +50505,7 @@ static void ma_linear_resampler_interpolate_frame_s16(ma_linear_resampler* pResa
 
     a = (pResampler->inTimeFrac << shift) / pResampler->config.sampleRateOut;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
     for (c = 0; c < channels; c += 1) {
         ma_int16 s = ma_linear_resampler_mix_s16(pResampler->x0.s16[c], pResampler->x1.s16[c], a, shift);
         pFrameOut[c] = s;
@@ -50509,7 +50524,7 @@ static void ma_linear_resampler_interpolate_frame_f32(ma_linear_resampler* pResa
 
     a = (float)pResampler->inTimeFrac / pResampler->config.sampleRateOut;
 
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
     for (c = 0; c < channels; c += 1) {
         float s = ma_mix_f32_fast(pResampler->x0.f32[c], pResampler->x1.f32[c], a);
         pFrameOut[c] = s;
@@ -51744,6 +51759,7 @@ static void ma_channel_map_apply_shuffle_table_u8(ma_uint8* pFramesOut, ma_uint3
     ma_uint64 iFrame;
     ma_uint32 iChannelOut;
 
+#pragma clang loop unroll(disable)
     for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
         for (iChannelOut = 0; iChannelOut < channelsOut; iChannelOut += 1) {
             ma_uint8 iChannelIn = pShuffleTable[iChannelOut];
@@ -51764,6 +51780,7 @@ static void ma_channel_map_apply_shuffle_table_s16(ma_int16* pFramesOut, ma_uint
     ma_uint64 iFrame;
     ma_uint32 iChannelOut;
 
+#pragma clang loop unroll(disable)
     for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
         for (iChannelOut = 0; iChannelOut < channelsOut; iChannelOut += 1) {
             ma_uint8 iChannelIn = pShuffleTable[iChannelOut];
@@ -51806,6 +51823,7 @@ static void ma_channel_map_apply_shuffle_table_s32(ma_int32* pFramesOut, ma_uint
     ma_uint64 iFrame;
     ma_uint32 iChannelOut;
 
+#pragma clang loop unroll(disable)
     for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
         for (iChannelOut = 0; iChannelOut < channelsOut; iChannelOut += 1) {
             ma_uint8 iChannelIn = pShuffleTable[iChannelOut];
@@ -51826,6 +51844,7 @@ static void ma_channel_map_apply_shuffle_table_f32(float* pFramesOut, ma_uint32 
     ma_uint64 iFrame;
     ma_uint32 iChannelOut;
 
+#pragma clang loop unroll(disable)
     for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
         for (iChannelOut = 0; iChannelOut < channelsOut; iChannelOut += 1) {
             ma_uint8 iChannelIn = pShuffleTable[iChannelOut];
@@ -52060,6 +52079,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 2; iChannelOut += 1) {
                                         pFramesOut[iFrame*2 + iChannelOut] = pFramesIn[iFrame];
@@ -52087,6 +52107,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 6; iChannelOut += 1) {
                                         pFramesOut[iFrame*6 + iChannelOut] = pFramesIn[iFrame];
@@ -52104,6 +52125,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 8; iChannelOut += 1) {
                                         pFramesOut[iFrame*8 + iChannelOut] = pFramesIn[iFrame];
@@ -65253,7 +65275,7 @@ static MA_INLINE ma_uint64 ma_noise_read_pcm_frames__white(ma_noise* pNoise, voi
     ma_uint64 iFrame;
     ma_uint32 iChannel;
     const ma_uint32 channels = pNoise->config.channels;
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
 
     if (pNoise->config.format == ma_format_f32) {
         float* pFramesOutF32 = (float*)pFramesOut;
@@ -65372,7 +65394,7 @@ static MA_INLINE ma_uint64 ma_noise_read_pcm_frames__pink(ma_noise* pNoise, void
     ma_uint64 iFrame;
     ma_uint32 iChannel;
     const ma_uint32 channels = pNoise->config.channels;
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
 
     if (pNoise->config.format == ma_format_f32) {
         float* pFramesOutF32 = (float*)pFramesOut;
@@ -65454,7 +65476,7 @@ static MA_INLINE ma_uint64 ma_noise_read_pcm_frames__brownian(ma_noise* pNoise, 
     ma_uint64 iFrame;
     ma_uint32 iChannel;
     const ma_uint32 channels = pNoise->config.channels;
-    MA_ASSUME(channels > 0);
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
 
     if (pNoise->config.format == ma_format_f32) {
         float* pFramesOutF32 = (float*)pFramesOut;
@@ -69633,7 +69655,7 @@ MA_API void ma_debug_fill_pcm_frames_with_sine_wave(float* pFramesOut, ma_uint32
 
 
 
-static ma_result ma_mix_pcm_frames_f32(float* pDst, const float* pSrc, ma_uint64 frameCount, ma_uint32 channels, float volume)
+static ma_result ma_mix_pcm_frames_f32(float* MA_RESTRICT pDst, const float* MA_RESTRICT pSrc, ma_uint64 frameCount, ma_uint32 channels, float volume)
 {
     ma_uint64 iSample;
     ma_uint64 sampleCount;
@@ -69649,10 +69671,12 @@ static ma_result ma_mix_pcm_frames_f32(float* pDst, const float* pSrc, ma_uint64
     sampleCount = frameCount * channels;
 
     if (volume == 1) {
+#pragma clang loop vectorize(enable)
         for (iSample = 0; iSample < sampleCount; iSample += 1) {
             pDst[iSample] += pSrc[iSample];
         }
     } else {
+#pragma clang loop vectorize(enable)
         for (iSample = 0; iSample < sampleCount; iSample += 1) {
             pDst[iSample] += ma_apply_volume_unclipped_f32(pSrc[iSample], volume);
         }
