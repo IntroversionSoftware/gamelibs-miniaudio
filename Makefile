@@ -68,7 +68,7 @@ $(OBJ_DIR)/$(LIB): $(OBJECTS) | $$(@D)/.
 	$(QUIET_AR)$(AR) $(ARFLAGS) $@ $^
 	$(QUIET_RANLIB)$(RANLIB) $@
 
-miniaudio_engine.c: miniaudio.h
+$(OBJ_DIR)/miniaudio_engine.o: miniaudio.h
 
 $(OBJ_DIR)/%.o: %.c $(OBJ_DIR)/.cflags | $$(@D)/.
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ -c $<
