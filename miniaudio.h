@@ -47961,6 +47961,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
 
                         iFrame = unrolledLoopCount << 1;
                     #else
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 2; iChannel += 1) {
                                 pFramesOutF32[iFrame*2 + iChannel] = pFramesInF32[iFrame*2 + iChannel] * pRunningGain[iChannel];
@@ -48005,6 +48006,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     } else
                 #endif
                     {
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 6; iChannel += 1) {
                                 pFramesOutF32[iFrame*6 + iChannel] = pFramesInF32[iFrame*6 + iChannel] * pRunningGain[iChannel];
@@ -48036,6 +48038,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                 #endif
                     {
                         /* This is crafted so that it auto-vectorizes when compiled with Clang. */
+                        #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
                             for (iChannel = 0; iChannel < 8; iChannel += 1) {
                                 pFramesOutF32[iFrame*8 + iChannel] = pFramesInF32[iFrame*8 + iChannel] * pRunningGain[iChannel];
@@ -51978,6 +51981,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 2; iChannelOut += 1) {
                                         pFramesOut[iFrame*2 + iChannelOut] = pFramesIn[iFrame];
@@ -52005,6 +52009,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 6; iChannelOut += 1) {
                                         pFramesOut[iFrame*6 + iChannelOut] = pFramesIn[iFrame];
@@ -52022,6 +52027,7 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                             } else
                         #endif
                             {
+                                #pragma clang loop vectorize(enable)
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
                                     for (iChannelOut = 0; iChannelOut < 8; iChannelOut += 1) {
                                         pFramesOut[iFrame*8 + iChannelOut] = pFramesIn[iFrame];
