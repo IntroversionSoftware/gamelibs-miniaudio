@@ -44860,15 +44860,53 @@ static MA_INLINE void ma_lpf1_process_pcm_frame_f32(ma_lpf1* pLPF, float* pY, co
     const float b = 1 - a;
 
     MA_ASSUME(channels > 0);
-    for (c = 0; c < channels; c += 1) {
-        float r1 = pLPF->pR1[c].f32;
-        float x  = pX[c];
-        float y;
+    if (channels == 8) {
+        #pragma clang loop vectorize(enable)
+        for (c = 0; c < 8; c += 1) {
+            float r1 = pLPF->pR1[c].f32;
+            float x  = pX[c];
+            float y;
 
-        y = b*x + a*r1;
+            y = b*x + a*r1;
 
-        pY[c]           = y;
-        pLPF->pR1[c].f32 = y;
+            pY[c]           = y;
+            pLPF->pR1[c].f32 = y;
+        }
+    } else if (channels == 6) {
+        #pragma clang loop vectorize(enable)
+        for (c = 0; c < 6; c += 1) {
+            float r1 = pLPF->pR1[c].f32;
+            float x  = pX[c];
+            float y;
+
+            y = b*x + a*r1;
+
+            pY[c]           = y;
+            pLPF->pR1[c].f32 = y;
+        }
+    } else if (channels == 2) {
+        #pragma clang loop vectorize(enable)
+        for (c = 0; c < 2; c += 1) {
+            float r1 = pLPF->pR1[c].f32;
+            float x  = pX[c];
+            float y;
+
+            y = b*x + a*r1;
+
+            pY[c]           = y;
+            pLPF->pR1[c].f32 = y;
+        }
+    } else {
+        for (c = 0; c < channels; c += 1) {
+            float r1 = pLPF->pR1[c].f32;
+            float x  = pX[c];
+            float y;
+
+            y = b*x + a*r1;
+
+            pY[c]           = y;
+            pLPF->pR1[c].f32 = y;
+        }
     }
 }
 
