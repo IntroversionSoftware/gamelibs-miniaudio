@@ -6922,8 +6922,12 @@ typedef enum
 typedef enum
 {
     ma_wasapi_usage_default = 0,
+    ma_wasapi_usage_none,
     ma_wasapi_usage_games,
     ma_wasapi_usage_pro_audio,
+    ma_wasapi_usage_audio,
+    ma_wasapi_usage_playback,
+    ma_wasapi_usage_capture,
 } ma_wasapi_usage;
 
 /* AAudio usage types. */
@@ -21122,8 +21126,12 @@ static const char* ma_to_usage_string__wasapi(ma_wasapi_usage usage)
     switch (usage)
     {
         case ma_wasapi_usage_default:   return NULL;
+        case ma_wasapi_usage_none:      return NULL;
         case ma_wasapi_usage_games:     return "Games";
         case ma_wasapi_usage_pro_audio: return "Pro Audio";
+        case ma_wasapi_usage_audio:     return "Audio";
+        case ma_wasapi_usage_playback:  return "Playback";
+        case ma_wasapi_usage_capture:   return "Capture";
         default: break;
     }
 
@@ -22743,6 +22751,21 @@ static ma_result ma_device_init__wasapi(ma_device* pDevice, const ma_device_conf
     /* Exclusive mode is not allowed with loopback. */
     if (pConfig->deviceType == ma_device_type_loopback && pConfig->playback.shareMode == ma_share_mode_exclusive) {
         return MA_INVALID_DEVICE_CONFIG;
+    }
+
+    if (pDevice->wasapi.usage == ma_wasapi_usage_default) {
+        switch (pConfig->deviceType) {
+        case ma_device_type_playback:
+            pDevice->wasapi.usage = ma_wasapi_usage_playback;
+            break;
+        case ma_device_type_capture:
+            pDevice->wasapi.usage = ma_wasapi_usage_capture;
+            break;
+        case ma_device_type_duplex:
+        case ma_device_type_loopback:
+            pDevice->wasapi.usage = ma_wasapi_usage_audio;
+            break;
+        }
     }
 
     if (pConfig->deviceType == ma_device_type_capture || pConfig->deviceType == ma_device_type_duplex || pConfig->deviceType == ma_device_type_loopback) {
