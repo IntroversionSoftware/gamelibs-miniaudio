@@ -5274,6 +5274,7 @@ typedef struct
     ma_uint32 channels;
     ma_uint32 sampleRateIn;
     ma_uint32 sampleRateOut;
+    float     sampleRateOutRecip;
     ma_uint32 lpfOrder;         /* The low-pass filter order. Setting this to 0 will disable low-pass filtering. */
     double    lpfNyquistFactor; /* 0..1. Defaults to 1. 1 = Half the sampling frequency (Nyquist Frequency), 0.5 = Quarter the sampling frequency (half Nyquest Frequency), etc. */
 } ma_linear_resampler_config;
@@ -51132,6 +51133,7 @@ MA_API ma_linear_resampler_config ma_linear_resampler_config_init(ma_format form
     config.channels         = channels;
     config.sampleRateIn     = sampleRateIn;
     config.sampleRateOut    = sampleRateOut;
+    config.sampleRateOutRecip = 1.0f / (float)sampleRateOut;
     config.lpfOrder         = ma_min(MA_DEFAULT_RESAMPLER_LPF_ORDER, MA_MAX_FILTER_ORDER);
     config.lpfNyquistFactor = 1;
 
@@ -51187,6 +51189,7 @@ static ma_result ma_linear_resampler_set_rate_internal(ma_linear_resampler* pRes
 
     pResampler->config.sampleRateIn  = sampleRateIn;
     pResampler->config.sampleRateOut = sampleRateOut;
+    pResampler->config.sampleRateOutRecip = 1.0f / (float)sampleRateOut;
 
     /* Simplify the sample rate. */
     gcf = ma_gcf_u32(pResampler->config.sampleRateIn, pResampler->config.sampleRateOut);
@@ -51433,7 +51436,7 @@ static void ma_linear_resampler_interpolate_frame_f32(ma_linear_resampler* pResa
     MA_ASSERT(pResampler != NULL);
     MA_ASSERT(pFrameOut  != NULL);
 
-    a = (float)pResampler->inTimeFrac / pResampler->config.sampleRateOut;
+    a = (float)pResampler->inTimeFrac * pResampler->config.sampleRateOutRecip;
 
     MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
     for (c = 0; c < channels; c += 1) {
