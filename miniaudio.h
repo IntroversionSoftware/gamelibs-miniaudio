@@ -20036,7 +20036,7 @@ static GUID MA_GUID_KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = {0x00000003, 0x0000, 0x001
 /*static GUID MA_GUID_KSDATAFORMAT_SUBTYPE_ALAW       = {0x00000006, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};*/
 /*static GUID MA_GUID_KSDATAFORMAT_SUBTYPE_MULAW      = {0x00000007, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};*/
 
-MA_API size_t ma_strlen_WCHAR(const WCHAR* str)
+MA_API MA_NO_INLINE size_t ma_strlen_WCHAR(const WCHAR* str)
 {
     size_t len = 0;
     while (str[len] != '\0') {
@@ -20046,7 +20046,7 @@ MA_API size_t ma_strlen_WCHAR(const WCHAR* str)
     return len;
 }
 
-MA_API int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
+MA_API MA_NO_INLINE int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
 {
     while (*s1 != '\0' && *s1 == *s2) {
         s1 += 1;
@@ -20056,7 +20056,7 @@ MA_API int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
     return *s1 - *s2;
 }
 
-MA_API int ma_strcpy_s_WCHAR(WCHAR* dst, size_t dstCap, const WCHAR* src)
+MA_API MA_NO_INLINE int ma_strcpy_s_WCHAR(WCHAR* dst, size_t dstCap, const WCHAR* src)
 {
     size_t i;
 
