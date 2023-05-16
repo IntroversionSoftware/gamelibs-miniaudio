@@ -3916,6 +3916,7 @@ typedef ma_uint16 wchar_t;
 
 #ifdef _MSC_VER
     #define MA_INLINE __forceinline
+    #define MA_NO_INLINE __declspec(noinline)
 #elif defined(__GNUC__)
     /*
     I've had a bug report where GCC is emitting warnings about functions possibly not being inlineable. This warning happens when
@@ -3932,13 +3933,17 @@ typedef ma_uint16 wchar_t;
 
     #if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2)) || defined(__clang__)
         #define MA_INLINE MA_GNUC_INLINE_HINT __attribute__((always_inline))
+        #define MA_NO_INLINE __attribute__((noinline))
     #else
         #define MA_INLINE MA_GNUC_INLINE_HINT
+        #define MA_NO_INLINE __attribute__((noinline))
     #endif
 #elif defined(__WATCOMC__)
     #define MA_INLINE __inline
+    #define MA_NO_INLINE
 #else
     #define MA_INLINE
+    #define MA_NO_INLINE
 #endif
 
 #if !defined(MA_API)
@@ -12324,7 +12329,7 @@ Return Values:
 
 Not using symbolic constants for errors because I want to avoid #including errno.h
 */
-MA_API int ma_strcpy_s(char* dst, size_t dstSizeInBytes, const char* src)
+MA_API MA_NO_INLINE int ma_strcpy_s(char* dst, size_t dstSizeInBytes, const char* src)
 {
     size_t i;
 
@@ -12352,7 +12357,7 @@ MA_API int ma_strcpy_s(char* dst, size_t dstSizeInBytes, const char* src)
     return 34;
 }
 
-MA_API int ma_wcscpy_s(wchar_t* dst, size_t dstCap, const wchar_t* src)
+MA_API MA_NO_INLINE int ma_wcscpy_s(wchar_t* dst, size_t dstCap, const wchar_t* src)
 {
     size_t i;
 
@@ -12381,7 +12386,7 @@ MA_API int ma_wcscpy_s(wchar_t* dst, size_t dstCap, const wchar_t* src)
 }
 
 
-MA_API int ma_strncpy_s(char* dst, size_t dstSizeInBytes, const char* src, size_t count)
+MA_API MA_NO_INLINE int ma_strncpy_s(char* dst, size_t dstSizeInBytes, const char* src, size_t count)
 {
     size_t maxcount;
     size_t i;
@@ -12415,7 +12420,7 @@ MA_API int ma_strncpy_s(char* dst, size_t dstSizeInBytes, const char* src, size_
     return 34;
 }
 
-MA_API int ma_strcat_s(char* dst, size_t dstSizeInBytes, const char* src)
+MA_API MA_NO_INLINE int ma_strcat_s(char* dst, size_t dstSizeInBytes, const char* src)
 {
     char* dstorig;
 
@@ -12457,7 +12462,7 @@ MA_API int ma_strcat_s(char* dst, size_t dstSizeInBytes, const char* src)
     return 0;
 }
 
-MA_API int ma_strncat_s(char* dst, size_t dstSizeInBytes, const char* src, size_t count)
+MA_API MA_NO_INLINE int ma_strncat_s(char* dst, size_t dstSizeInBytes, const char* src, size_t count)
 {
     char* dstorig;
 
@@ -12503,7 +12508,7 @@ MA_API int ma_strncat_s(char* dst, size_t dstSizeInBytes, const char* src, size_
     return 0;
 }
 
-MA_API int ma_itoa_s(int value, char* dst, size_t dstSizeInBytes, int radix)
+MA_API MA_NO_INLINE int ma_itoa_s(int value, char* dst, size_t dstSizeInBytes, int radix)
 {
     int sign;
     unsigned int valueU;
@@ -12612,7 +12617,7 @@ static const unsigned char ma_strcasecmp_charmap[] = {
     '\370', '\371', '\372', '\373', '\374', '\375', '\376', '\377',
 };
 
-MA_API int ma_strcasecmp(const char *s1, const char *s2)
+MA_API MA_NO_INLINE int ma_strcasecmp(const char *s1, const char *s2)
 {
     const unsigned char *cm = ma_strcasecmp_charmap;
     const unsigned char *us1 = (const unsigned char *)s1;
@@ -12623,7 +12628,7 @@ MA_API int ma_strcasecmp(const char *s1, const char *s2)
     return (cm[*us1] - cm[*--us2]);
 }
 
-MA_API int ma_strncasecmp(const char *s1, const char *s2, size_t n)
+MA_API MA_NO_INLINE int ma_strncasecmp(const char *s1, const char *s2, size_t n)
 {
     if (n != 0) {
         const unsigned char *cm = ma_strcasecmp_charmap;
@@ -12639,7 +12644,7 @@ MA_API int ma_strncasecmp(const char *s1, const char *s2, size_t n)
     return (0);
 }
 
-MA_API int ma_strcmp(const char* str1, const char* str2)
+MA_API MA_NO_INLINE int ma_strcmp(const char* str1, const char* str2)
 {
     if (str1 == str2) return  0;
 
@@ -12662,7 +12667,7 @@ MA_API int ma_strcmp(const char* str1, const char* str2)
     return ((unsigned char*)str1)[0] - ((unsigned char*)str2)[0];
 }
 
-MA_API int ma_strappend(char* dst, size_t dstSize, const char* srcA, const char* srcB)
+MA_API MA_NO_INLINE int ma_strappend(char* dst, size_t dstSize, const char* srcA, const char* srcB)
 {
     int result;
 
@@ -12679,7 +12684,7 @@ MA_API int ma_strappend(char* dst, size_t dstSize, const char* srcA, const char*
     return result;
 }
 
-MA_API char* ma_copy_string(const char* src, const ma_allocation_callbacks* pAllocationCallbacks)
+MA_API MA_NO_INLINE char* ma_copy_string(const char* src, const ma_allocation_callbacks* pAllocationCallbacks)
 {
     size_t sz;
     char* dst;
@@ -12699,7 +12704,7 @@ MA_API char* ma_copy_string(const char* src, const ma_allocation_callbacks* pAll
     return dst;
 }
 
-MA_API wchar_t* ma_copy_string_w(const wchar_t* src, const ma_allocation_callbacks* pAllocationCallbacks)
+MA_API MA_NO_INLINE wchar_t* ma_copy_string_w(const wchar_t* src, const ma_allocation_callbacks* pAllocationCallbacks)
 {
     size_t sz = wcslen(src)+1;
     wchar_t* dst = (wchar_t*)ma_malloc(sz * sizeof(*dst), pAllocationCallbacks);
@@ -18370,7 +18375,7 @@ typedef LONG    (WINAPI * MA_PFN_RegQueryValueExA)(HKEY hKey, const char* lpValu
 #endif  /* MA_WIN32_DESKTOP */
 
 
-MA_API size_t ma_strlen_WCHAR(const WCHAR* str)
+MA_API MA_NO_INLINE size_t ma_strlen_WCHAR(const WCHAR* str)
 {
     size_t len = 0;
     while (str[len] != '\0') {
@@ -18380,7 +18385,7 @@ MA_API size_t ma_strlen_WCHAR(const WCHAR* str)
     return len;
 }
 
-MA_API int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
+MA_API MA_NO_INLINE int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
 {
     while (*s1 != '\0' && *s1 == *s2) {
         s1 += 1;
@@ -18390,7 +18395,7 @@ MA_API int ma_strcmp_WCHAR(const WCHAR *s1, const WCHAR *s2)
     return *s1 - *s2;
 }
 
-MA_API int ma_strcpy_s_WCHAR(WCHAR* dst, size_t dstCap, const WCHAR* src)
+MA_API MA_NO_INLINE int ma_strcpy_s_WCHAR(WCHAR* dst, size_t dstCap, const WCHAR* src)
 {
     size_t i;
 
