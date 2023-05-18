@@ -9,6 +9,7 @@
 #endif
 
 #define MA_DEBUG_OUTPUT
+#define MA_MAX_CHANNELS 16
 
 #define MA_NO_WAV
 #define MA_NO_MP3
