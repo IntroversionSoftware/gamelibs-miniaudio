@@ -51598,14 +51598,12 @@ static ma_result ma_linear_resampler_process_pcm_frames_f32_downsample(ma_linear
             ma_uint32 iChannel;
 
             if (pFramesInF32 != NULL) {
-#pragma clang loop vectorize(assume_safety)
                 for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
                     pResampler->x1.f32[iChannel] = pFramesInF32[iChannel];
                 }
                 pFramesInF32 += pResampler->config.channels;
             } else {
-#pragma clang loop vectorize(assume_safety)
                 for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
                     pResampler->x1.f32[iChannel] = 0;
@@ -51674,14 +51672,12 @@ static ma_result ma_linear_resampler_process_pcm_frames_f32_upsample(ma_linear_r
             ma_uint32 iChannel;
 
             if (pFramesInF32 != NULL) {
-#pragma clang loop vectorize(assume_safety)
                 for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
                     pResampler->x1.f32[iChannel] = pFramesInF32[iChannel];
                 }
                 pFramesInF32 += pResampler->config.channels;
             } else {
-#pragma clang loop vectorize(assume_safety)
                 for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
                     pResampler->x1.f32[iChannel] = 0;
