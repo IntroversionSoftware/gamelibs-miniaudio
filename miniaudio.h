@@ -51917,6 +51917,7 @@ static void ma_linear_resampler_interpolate_frame_f32(ma_linear_resampler* pResa
 
 static ma_result ma_linear_resampler_process_pcm_frames_s16_downsample(ma_linear_resampler* pResampler, const void* pFramesIn, ma_uint64* pFrameCountIn, void* pFramesOut, ma_uint64* pFrameCountOut)
 {
+    const ma_uint32 channels = pResampler->config.channels;
     const ma_int16* pFramesInS16;
     /* */ ma_int16* pFramesOutS16;
     ma_uint64 frameCountIn;
@@ -51935,20 +51936,26 @@ static ma_result ma_linear_resampler_process_pcm_frames_s16_downsample(ma_linear
     framesProcessedIn  = 0;
     framesProcessedOut = 0;
 
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+
     while (framesProcessedOut < frameCountOut) {
         /* Before interpolating we need to load the buffers. When doing this we need to ensure we run every input sample through the filter. */
         while (pResampler->inTimeInt > 0 && frameCountIn > framesProcessedIn) {
             ma_uint32 iChannel;
 
             if (pFramesInS16 != NULL) {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.s16[iChannel] = pResampler->x1.s16[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.s16[iChannel] = pFramesInS16[iChannel];
                 }
                 pFramesInS16 += pResampler->config.channels;
             } else {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.s16[iChannel] = pResampler->x1.s16[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.s16[iChannel] = 0;
                 }
             }
@@ -51993,6 +52000,7 @@ static ma_result ma_linear_resampler_process_pcm_frames_s16_downsample(ma_linear
 
 static ma_result ma_linear_resampler_process_pcm_frames_s16_upsample(ma_linear_resampler* pResampler, const void* pFramesIn, ma_uint64* pFrameCountIn, void* pFramesOut, ma_uint64* pFrameCountOut)
 {
+    const ma_uint32 channels = pResampler->config.channels;
     const ma_int16* pFramesInS16;
     /* */ ma_int16* pFramesOutS16;
     ma_uint64 frameCountIn;
@@ -52011,20 +52019,26 @@ static ma_result ma_linear_resampler_process_pcm_frames_s16_upsample(ma_linear_r
     framesProcessedIn  = 0;
     framesProcessedOut = 0;
 
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+
     while (framesProcessedOut < frameCountOut) {
         /* Before interpolating we need to load the buffers. */
         while (pResampler->inTimeInt > 0 && frameCountIn > framesProcessedIn) {
             ma_uint32 iChannel;
 
             if (pFramesInS16 != NULL) {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.s16[iChannel] = pResampler->x1.s16[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.s16[iChannel] = pFramesInS16[iChannel];
                 }
                 pFramesInS16 += pResampler->config.channels;
             } else {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.s16[iChannel] = pResampler->x1.s16[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.s16[iChannel] = 0;
                 }
             }
@@ -52081,6 +52095,7 @@ static ma_result ma_linear_resampler_process_pcm_frames_s16(ma_linear_resampler*
 
 static ma_result ma_linear_resampler_process_pcm_frames_f32_downsample(ma_linear_resampler* MA_RESTRICT pResampler, const void* pFramesIn, ma_uint64* pFrameCountIn, void* pFramesOut, ma_uint64* pFrameCountOut)
 {
+    const ma_uint32 channels = pResampler->config.channels;
     const float* pFramesInF32;
     /* */ float* pFramesOutF32;
     ma_uint64 frameCountIn;
@@ -52099,20 +52114,26 @@ static ma_result ma_linear_resampler_process_pcm_frames_f32_downsample(ma_linear
     framesProcessedIn  = 0;
     framesProcessedOut = 0;
 
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+
     while (framesProcessedOut < frameCountOut) {
         /* Before interpolating we need to load the buffers. When doing this we need to ensure we run every input sample through the filter. */
         while (pResampler->inTimeInt > 0 && frameCountIn > framesProcessedIn) {
             ma_uint32 iChannel;
 
             if (pFramesInF32 != NULL) {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.f32[iChannel] = pFramesInF32[iChannel];
                 }
                 pFramesInF32 += pResampler->config.channels;
             } else {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.f32[iChannel] = 0;
                 }
             }
@@ -52157,6 +52178,7 @@ static ma_result ma_linear_resampler_process_pcm_frames_f32_downsample(ma_linear
 
 static ma_result ma_linear_resampler_process_pcm_frames_f32_upsample(ma_linear_resampler* MA_RESTRICT pResampler, const void* pFramesIn, ma_uint64* pFrameCountIn, void* pFramesOut, ma_uint64* pFrameCountOut)
 {
+    const ma_uint32 channels = pResampler->config.channels;
     const float* pFramesInF32;
     /* */ float* pFramesOutF32;
     ma_uint64 frameCountIn;
@@ -52175,20 +52197,26 @@ static ma_result ma_linear_resampler_process_pcm_frames_f32_upsample(ma_linear_r
     framesProcessedIn  = 0;
     framesProcessedOut = 0;
 
+    MA_ASSUME(channels >= MA_MIN_CHANNELS && channels <= MA_MAX_CHANNELS);
+
     while (framesProcessedOut < frameCountOut) {
         /* Before interpolating we need to load the buffers. */
         while (pResampler->inTimeInt > 0 && frameCountIn > framesProcessedIn) {
             ma_uint32 iChannel;
 
             if (pFramesInF32 != NULL) {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.f32[iChannel] = pFramesInF32[iChannel];
                 }
                 pFramesInF32 += pResampler->config.channels;
             } else {
-                for (iChannel = 0; iChannel < pResampler->config.channels; iChannel += 1) {
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x0.f32[iChannel] = pResampler->x1.f32[iChannel];
+                }
+                for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     pResampler->x1.f32[iChannel] = 0;
                 }
             }
