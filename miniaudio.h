@@ -43024,7 +43024,7 @@ MA_API void ma_copy_and_apply_volume_factor_s32(ma_int32* pSamplesOut, const ma_
     }
 }
 
-MA_API void ma_copy_and_apply_volume_factor_f32(float* MA_RESTRICT pSamplesOut, const float* MA_RESTRICT pSamplesIn, ma_uint64 sampleCount, float factor)
+MA_API void ma_copy_and_apply_volume_factor_f32(float* pSamplesOut, const float* pSamplesIn, ma_uint64 sampleCount, float factor)
 {
     ma_uint64 iSample;
 
@@ -48940,7 +48940,7 @@ static float ma_gainer_calculate_current_gain(const ma_gainer* pGainer, ma_uint3
     return ma_mix_f32_fast(pGainer->pOldGains[channel], pGainer->pNewGains[channel], a);
 }
 
-static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_internal(ma_gainer * pGainer, void* MA_RESTRICT pFramesOut, const void* MA_RESTRICT pFramesIn, ma_uint64 frameCount)
+static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_internal(ma_gainer * pGainer, void* pFramesOut, const void* pFramesIn, ma_uint64 frameCount)
 {
     ma_uint64 iFrame;
     ma_uint32 iChannel;
