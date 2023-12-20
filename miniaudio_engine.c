@@ -18,9 +18,6 @@
 #define MA_NO_CUSTOM
 #define MA_NO_ENCODING
 #define MA_NO_GENERATION
-#define MA_NO_SSE2
-#define MA_NO_AVX2
-#define MA_NO_NEON
 
 #if defined(__i386__) ||  defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #include <immintrin.h>
