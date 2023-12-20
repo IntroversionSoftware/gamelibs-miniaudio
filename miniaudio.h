@@ -49149,9 +49149,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     }
                 }
 
-                #pragma clang loop unroll(disable)
                 for (; iFrame < interpolatedFrameCount; iFrame += 1) {
-                    #pragma clang loop vectorize(enable)
                     for (iChannel = 0; iChannel < channels; iChannel += 1) {
                         pFramesOutF32[iFrame*channels + iChannel] = pFramesInF32[iFrame*channels + iChannel] * pRunningGain[iChannel];
                         pRunningGain[iChannel] += pRunningGainDelta[iChannel];
@@ -49159,9 +49157,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                 }
             } else {
                 /* Slower path for extreme channel counts where we can't fit enough on the stack. We could also move this to the heap as part of the ma_gainer object which might even be better since it'll only be updated when the gains actually change. */
-                #pragma clang loop unroll(disable)
                 for (iFrame = 0; iFrame < interpolatedFrameCount; iFrame += 1) {
-                    #pragma clang loop vectorize(enable)
                     for (iChannel = 0; iChannel < channels; iChannel += 1) {
                         pFramesOutF32[iFrame*channels + iChannel] = pFramesInF32[iFrame*channels + iChannel] * ma_mix_f32_fast(pGainer->pOldGains[iChannel], pGainer->pNewGains[iChannel], a) * pGainer->masterVolume;
                     }
@@ -49191,9 +49187,7 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
             ma_copy_and_apply_volume_factor_per_channel_f32((float*)pFramesOut, (const float*)pFramesIn, frameCount, channels, gains);
         } else {
             /* Slow path. Too many channels to fit on the stack. Need to apply a master volume as a separate path. */
-#pragma clang loop unroll(disable)
             for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
-#pragma clang loop vectorize(enable)
                 for (iChannel = 0; iChannel < channels; iChannel += 1) {
                     ((float*)pFramesOut)[iFrame*channels + iChannel] = ((const float*)pFramesIn)[iFrame*channels + iChannel] * pGainer->pNewGains[iChannel] * pGainer->masterVolume;
                 }
