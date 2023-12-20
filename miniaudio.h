@@ -49167,8 +49167,14 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     #else
                         #pragma clang loop vectorize(enable)
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
+                            float appliedGains[2];
+
                             for (iChannel = 0; iChannel < 2; iChannel += 1) {
-                                pFramesOutF32[iFrame*2 + iChannel] = pFramesInF32[iFrame*2 + iChannel] * pRunningGain[iChannel];
+                                appliedGains[iChannel] = pFramesInF32[iFrame * 2 + iChannel] * pRunningGain[iChannel];
+                            }
+
+                            for (iChannel = 0; iChannel < 2; iChannel += 1) {
+                                pFramesOutF32[iFrame * 2 + iChannel] = appliedGains[iChannel];
                             }
 
                             for (iChannel = 0; iChannel < 2; iChannel += 1) {
@@ -49211,11 +49217,20 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                 #endif
                     {
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
+                            float appliedGains[6];
+
+                            #pragma clang loop vectorize(enable)
                             for (iChannel = 0; iChannel < 6; iChannel += 1) {
-                                pFramesOutF32[iFrame*6 + iChannel] = pFramesInF32[iFrame*6 + iChannel] * pRunningGain[iChannel];
+                                appliedGains[iChannel] = pFramesInF32[iFrame*6 + iChannel] * pRunningGain[iChannel];
+                            }
+
+                            #pragma clang loop vectorize(enable)
+                            for (iChannel = 0; iChannel < 6; iChannel += 1) {
+                                pFramesOutF32[iFrame * 6 + iChannel] = appliedGains[iChannel];
                             }
 
                             /* Move the running gain forward towards the new gain. */
+                            #pragma clang loop vectorize(enable)
                             for (iChannel = 0; iChannel < 6; iChannel += 1) {
                                 pRunningGain[iChannel] += pRunningGainDelta[iChannel];
                             }
@@ -49242,9 +49257,16 @@ static /*__attribute__((noinline))*/ ma_result ma_gainer_process_pcm_frames_inte
                     {
                         /* This is crafted so that it auto-vectorizes when compiled with Clang. */
                         for (; iFrame < interpolatedFrameCount; iFrame += 1) {
+                            float appliedGains[8];
+
                             #pragma clang loop vectorize(enable)
                             for (iChannel = 0; iChannel < 8; iChannel += 1) {
-                                pFramesOutF32[iFrame*8 + iChannel] = pFramesInF32[iFrame*8 + iChannel] * pRunningGain[iChannel];
+                                appliedGains[iChannel] = pFramesInF32[iFrame * 8 + iChannel] * pRunningGain[iChannel];
+                            }
+
+                            #pragma clang loop vectorize(enable)
+                            for (iChannel = 0; iChannel < 8; iChannel += 1) {
+                                pFramesOutF32[iFrame * 8 + iChannel] = appliedGains[iChannel];
                             }
 
                             /* Move the running gain forward towards the new gain. */
