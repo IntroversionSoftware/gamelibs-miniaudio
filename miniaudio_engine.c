@@ -1,9 +1,5 @@
 #include <stdio.h>
 
-#if !defined(USE_STB_VORBIS) && !defined(USE_OGGVORBIS)
-#define USE_STB_VORBIS
-#endif
-
 #ifdef __APPLE__
 #define MA_NO_RUNTIME_LINKING
 #endif
