@@ -18,15 +18,6 @@
     <ClInclude Include="..\..\miniaudio.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\extras\dr_flac.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\extras\dr_mp3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\extras\dr_wav.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\extras\miniaudio_libopus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
