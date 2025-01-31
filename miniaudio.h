@@ -23223,6 +23223,8 @@ static ma_result ma_device_stop__wasapi_nolock(ma_device* pDevice)
     }
 
     if (pDevice->type == ma_device_type_playback || pDevice->type == ma_device_type_duplex) {
+        ma_int32 retries = 5;
+
         /*
         The buffer needs to be drained before stopping the device. Not doing this will result in the last few frames not getting output to
         the speakers. This is a problem for very short sounds because it'll result in a significant portion of it not getting played.
@@ -23269,7 +23271,10 @@ static ma_result ma_device_stop__wasapi_nolock(ma_device* pDevice)
         }
 
         /* The audio client needs to be reset otherwise restarting will fail. */
-        hr = ma_IAudioClient_Reset((ma_IAudioClient*)pDevice->wasapi.pAudioClientPlayback);
+        while ((hr = ma_IAudioClient_Reset((ma_IAudioClient*)pDevice->wasapi.pAudioClientPlayback)) == MA_AUDCLNT_E_BUFFER_OPERATION_PENDING && retries > 0) {
+            ma_sleep(10);
+            --retries;
+        }
         if (FAILED(hr)) {
             ma_log_post(ma_device_get_log(pDevice), MA_LOG_LEVEL_ERROR, "[WASAPI] Failed to reset internal playback device.");
             return ma_result_from_HRESULT(hr);
