@@ -59,7 +59,7 @@
     <ClInclude Include="..\..\miniaudio.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\miniaudio_engine.c" />
+    <ClCompile Include="..\..\miniaudio.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
