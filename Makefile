@@ -34,7 +34,7 @@ libdir := $(prefix)/lib
 includedir := $(prefix)/include
 
 HEADERS = miniaudio.h
-SOURCES = miniaudio_engine.c
+SOURCES = miniaudio.c
 
 HEADERS_INST := $(includedir)/miniaudio.h
 OBJECTS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(SOURCES))
@@ -68,7 +68,7 @@ $(OBJ_DIR)/$(LIB): $(OBJECTS) | $$(@D)/.
 	$(QUIET_AR)$(AR) $(ARFLAGS) $@ $^
 	$(QUIET_RANLIB)$(RANLIB) $@
 
-$(OBJ_DIR)/miniaudio_engine.o: miniaudio.h
+$(OBJ_DIR)/miniaudio.o: miniaudio.h
 
 $(OBJ_DIR)/%.o: %.c $(OBJ_DIR)/.cflags | $$(@D)/.
 	$(QUIET_CC)$(CC) $(CFLAGS) -o $@ -c $<
