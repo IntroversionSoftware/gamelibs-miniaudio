@@ -32,7 +32,7 @@ link_deps += [
 incdirs = ['.', 'research']
 
 sources = [
-	'miniaudio_engine.c',
+	'miniaudio.c',
 ]
 
 incdirs = include_directories(incdirs)
