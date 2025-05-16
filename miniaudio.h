@@ -14339,6 +14339,29 @@ typedef int ma_atomic_memory_order;
             } break; \
         } \
         return result;
+    #define MA_ATOMIC_MSVC_ARM_INTRINSIC_NORETURN(dst, src, order, intrin, ma_atomicType, msvcType)   \
+        switch (order) \
+        { \
+            case ma_atomic_memory_order_relaxed: \
+            { \
+                (ma_atomicType)intrin##_nf((volatile msvcType*)dst, (msvcType)src); \
+            } break; \
+            case ma_atomic_memory_order_consume: \
+            case ma_atomic_memory_order_acquire: \
+            { \
+                (ma_atomicType)intrin##_acq((volatile msvcType*)dst, (msvcType)src); \
+            } break; \
+            case ma_atomic_memory_order_release: \
+            { \
+                (ma_atomicType)intrin##_rel((volatile msvcType*)dst, (msvcType)src); \
+            } break; \
+            case ma_atomic_memory_order_acq_rel: \
+            case ma_atomic_memory_order_seq_cst: \
+            default: \
+            { \
+                (ma_atomicType)intrin((volatile msvcType*)dst, (msvcType)src); \
+            } break; \
+        }
     typedef ma_uint32 ma_atomic_flag;
     static MA_INLINE ma_atomic_flag ma_atomic_flag_test_and_set_explicit(volatile ma_atomic_flag* dst, ma_atomic_memory_order order)
     {
@@ -14357,7 +14380,7 @@ typedef int ma_atomic_memory_order;
     {
         #if defined(MA_ARM)
         {
-            MA_ATOMIC_MSVC_ARM_INTRINSIC(dst, 0, order, _InterlockedExchange, ma_atomic_flag, long);
+            MA_ATOMIC_MSVC_ARM_INTRINSIC_NORETURN(dst, 0, order, _InterlockedExchange, ma_atomic_flag, long);
         }
         #else
         {
