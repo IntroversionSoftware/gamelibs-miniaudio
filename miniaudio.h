@@ -73110,7 +73110,6 @@ static ma_result ma_job_process__resource_manager__free_data_buffer_node(ma_job*
         ma_fence_release(pJob->data.resourceManager.freeDataBufferNode.pDoneFence);
     }
 
-    ma_atomic_fetch_add_32(&pDataBufferNode->executionPointer, 1);
     return MA_SUCCESS;
 }
 
