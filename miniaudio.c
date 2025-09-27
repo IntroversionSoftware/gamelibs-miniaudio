@@ -32,9 +32,21 @@
 
 #define STB_VORBIS_NO_FAST_SCALED_FLOAT
 #define STB_VORBIS_NO_INTEGER_CONVERSION
+#define STB_VORBIS_NO_INLINE_DECODE
+
+/* Like libvorbis and libvorbisfile, stb_vorbis has a bunch of deliberate
+ * variable shadowing, suppress the warning. */
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
+#endif
 
 #define STB_VORBIS_HEADER_ONLY
 #include "extras/stb_vorbis.c"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
@@ -49,8 +61,19 @@ extern void ogg_free(void *p);
 #define realloc ogg_realloc
 #define free ogg_free
 
+/* Like libvorbis and libvorbisfile, stb_vorbis has a bunch of deliberate
+ * variable shadowing, suppress the warning. */
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshadow"
+#endif
+
 #undef STB_VORBIS_HEADER_ONLY
 #include "extras/stb_vorbis.c"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 #else
 #error "Select an ogg/vorbis decoder implementation!"
