@@ -55064,7 +55064,6 @@ static ma_result ma_channel_map_apply_mono_in_f32(float* MA_RESTRICT pFramesOut,
                         #endif
                             {
                                 for (iFrame = 0; iFrame < frameCount; iFrame += 1) {
-                                    #pragma clang loop vectorize(enable)
                                     for (iChannelOut = 0; iChannelOut < 2; iChannelOut += 1) {
                                         pFramesOut[iFrame*2 + iChannelOut] = pFramesIn[iFrame];
                                     }
