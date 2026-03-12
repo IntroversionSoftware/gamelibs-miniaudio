@@ -66726,7 +66726,7 @@ MA_API ma_result ma_decoder_init_memory(const void* pData, size_t dataSize, cons
 
     config = ma_decoder_config_init_copy(pConfig);
 
-    result = ma_decoder__preinit(NULL, NULL, NULL, NULL, &config, pDecoder);
+    result = ma_decoder__preinit(ma_decoder__on_read_memory, ma_decoder__on_seek_memory, ma_decoder__on_tell_memory, NULL, &config, pDecoder);
     if (result != MA_SUCCESS) {
         return result;
     }
