@@ -989,14 +989,32 @@ static void setup_temp_free(vorb *f, void *p, int sz)
 #define CRC32_POLY    0x04c11db7   // from spec
 
 static uint32 crc_table[256];
+/* 0 = uninitialized, 1 = a thread is building the table, 2 = ready. crc32_init
+   is called on every decoder setup and from multiple resource-manager job
+   threads; initializing the table unconditionally each time is a write/write
+   (and write/read) data race even though every thread writes identical values.
+   Build it exactly once with proper happens-before so concurrent decoders see
+   a fully-populated table. */
+static volatile int crc_table_state = 0;
 static void crc32_init(void)
 {
    int i,j;
    uint32 s;
-   for(i=0; i < 256; i++) {
-      for (s=(uint32) i << 24, j=0; j < 8; ++j)
-         s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
-      crc_table[i] = s;
+   int expected = 0;
+
+   if (__atomic_load_n(&crc_table_state, __ATOMIC_ACQUIRE) == 2)
+      return;  /* Fast path: already built. */
+
+   if (__atomic_compare_exchange_n(&crc_table_state, &expected, 1, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+      for(i=0; i < 256; i++) {
+         for (s=(uint32) i << 24, j=0; j < 8; ++j)
+            s = (s << 1) ^ (s >= (1U<<31) ? CRC32_POLY : 0);
+         crc_table[i] = s;
+      }
+      __atomic_store_n(&crc_table_state, 2, __ATOMIC_RELEASE);
+   } else {
+      /* Another thread is building it; wait for the table to become ready. */
+      while (__atomic_load_n(&crc_table_state, __ATOMIC_ACQUIRE) != 2) { }
    }
 }
 
