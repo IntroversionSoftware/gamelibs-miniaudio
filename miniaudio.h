@@ -77201,6 +77201,17 @@ static void ma_engine_node_process_pcm_frames__sound(ma_node* pNode, const float
     (void)ppFramesIn;
     (void)pFrameCountIn;
 
+    /*
+    The node graph will never call this with a null node, but when ma_sound_at_end() is inlined
+    its null check makes GCC believe a null pSound can reach the atomic load of seekTarget below,
+    producing a bogus -Wstringop-overflow warning at LTO link time. Guard explicitly to kill that
+    path.
+    */
+    if (pSound == NULL) {
+        *pFrameCountOut = 0;
+        return;
+    }
+
     /* If we're marked at the end we need to stop the sound and do nothing. */
     if (ma_sound_at_end(pSound)) {
         ma_sound_stop(pSound);
