@@ -4470,9 +4470,30 @@ typedef ma_uint32 ma_spinlock;
     #endif
 
     #if defined(MA_POSIX)
-        typedef ma_pthread_mutex_t ma_mutex;
+        typedef ma_pthread_mutex_t ma_mutex_native;
     #elif defined(MA_WIN32)
-        typedef ma_handle ma_mutex;
+        typedef ma_handle ma_mutex_native;
+    #endif
+
+    #if defined(TRACY_ENABLE)
+        /*
+        In Tracy builds each mutex carries a Tracy lock context so lock waits and holds show up in the
+        profiler. MA_MUTEX_NATIVE() abstracts the difference away for the platform implementations, and
+        MA_MUTEX_SET_NAME() gives the lock a human readable name in the Tracy UI (no-op if init failed).
+        */
+        typedef struct
+        {
+            ma_mutex_native mutex;
+            TracyCLockCtx tracyCtx;
+        } ma_mutex;
+
+        #define MA_MUTEX_NATIVE(pMutex)         (&(pMutex)->mutex)
+        #define MA_MUTEX_SET_NAME(pMutex, name) do { if ((pMutex)->tracyCtx != NULL) { TracyCLockCustomName((pMutex)->tracyCtx, name, sizeof(name) - 1); } } while (0)
+    #else
+        typedef ma_mutex_native ma_mutex;
+
+        #define MA_MUTEX_NATIVE(pMutex)         (pMutex)
+        #define MA_MUTEX_SET_NAME(pMutex, name) do { } while (0)
     #endif
 
     #if defined(MA_POSIX)
@@ -6200,6 +6221,19 @@ Unlocks a spinlock.
 */
 MA_API ma_result ma_spinlock_unlock(volatile ma_spinlock* pSpinlock);
 
+/*
+Spinlock variants that emit Tracy lock events against an externally owned lock context (announced with
+TracyCLockAnnounce by whatever owns the spinlock). In non-Tracy builds these compile down to the plain
+spinlock functions and the context argument is discarded unevaluated.
+*/
+#if defined(TRACY_ENABLE)
+MA_API ma_result ma_spinlock_lock_tracked(volatile ma_spinlock* pSpinlock, TracyCLockCtx tracyCtx);
+MA_API ma_result ma_spinlock_unlock_tracked(volatile ma_spinlock* pSpinlock, TracyCLockCtx tracyCtx);
+#else
+#define ma_spinlock_lock_tracked(pSpinlock, tracyCtx)   ma_spinlock_lock(pSpinlock)
+#define ma_spinlock_unlock_tracked(pSpinlock, tracyCtx) ma_spinlock_unlock(pSpinlock)
+#endif
+
 
 #ifndef MA_NO_THREADING
 
@@ -6576,6 +6610,9 @@ typedef struct
     ma_job* pJobs;
 #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
     ma_spinlock lock;
+#if defined(TRACY_ENABLE)
+    TracyCLockCtx lockTracyCtx;
+#endif
 #endif
 
     /* Memory management. */
@@ -11349,6 +11386,9 @@ struct ma_engine
     ma_bool8 ownsResourceManager;
     ma_bool8 ownsDevice;
     ma_spinlock inlinedSoundLock;                   /* For synchronizing access to the inlined sound list. */
+#if defined(TRACY_ENABLE)
+    TracyCLockCtx inlinedSoundLockTracyCtx;
+#endif
     ma_sound_inlined* pInlinedSoundHead;            /* The first inlined sound. Inlined sounds are tracked in a linked list. */
     MA_ATOMIC(4, ma_uint32) inlinedSoundCount;      /* The total number of allocated inlined sound objects. Used for debugging. */
     ma_uint32 gainSmoothTimeInFrames;               /* The number of frames to interpolate the gain of spatialized sounds across. */
@@ -13750,6 +13790,8 @@ MA_API ma_result ma_log_init(const ma_allocation_callbacks* pAllocationCallbacks
         if (result != MA_SUCCESS) {
             return result;
         }
+
+        MA_MUTEX_SET_NAME(&pLog->lock, "ma_log.lock");
     }
     #endif
 
@@ -17759,6 +17801,29 @@ MA_API ma_result ma_spinlock_unlock(volatile ma_spinlock* pSpinlock)
     return MA_SUCCESS;
 }
 
+#if defined(TRACY_ENABLE)
+MA_API ma_result ma_spinlock_lock_tracked(volatile ma_spinlock* pSpinlock, TracyCLockCtx tracyCtx)
+{
+    ma_result result;
+
+    TracyCLockBeforeLock(tracyCtx);
+    result = ma_spinlock_lock(pSpinlock);
+    TracyCLockAfterLock(tracyCtx);
+
+    return result;
+}
+
+MA_API ma_result ma_spinlock_unlock_tracked(volatile ma_spinlock* pSpinlock, TracyCLockCtx tracyCtx)
+{
+    ma_result result;
+
+    result = ma_spinlock_unlock(pSpinlock);
+    TracyCLockAfterUnlock(tracyCtx);
+
+    return result;
+}
+#endif
+
 
 #ifndef MA_NO_THREADING
 #if defined(MA_POSIX)
@@ -17914,7 +17979,7 @@ static ma_result ma_mutex_init__posix(ma_mutex* pMutex)
 
     MA_ZERO_OBJECT(pMutex);
 
-    result = pthread_mutex_init((pthread_mutex_t*)pMutex, NULL);
+    result = pthread_mutex_init((pthread_mutex_t*)MA_MUTEX_NATIVE(pMutex), NULL);
     if (result != 0) {
         return ma_result_from_errno(result);
     }
@@ -17924,17 +17989,17 @@ static ma_result ma_mutex_init__posix(ma_mutex* pMutex)
 
 static void ma_mutex_uninit__posix(ma_mutex* pMutex)
 {
-    pthread_mutex_destroy((pthread_mutex_t*)pMutex);
+    pthread_mutex_destroy((pthread_mutex_t*)MA_MUTEX_NATIVE(pMutex));
 }
 
 static void ma_mutex_lock__posix(ma_mutex* pMutex)
 {
-    pthread_mutex_lock((pthread_mutex_t*)pMutex);
+    pthread_mutex_lock((pthread_mutex_t*)MA_MUTEX_NATIVE(pMutex));
 }
 
 static void ma_mutex_unlock__posix(ma_mutex* pMutex)
 {
-    pthread_mutex_unlock((pthread_mutex_t*)pMutex);
+    pthread_mutex_unlock((pthread_mutex_t*)MA_MUTEX_NATIVE(pMutex));
 }
 
 
@@ -18097,8 +18162,8 @@ static void ma_thread_wait__win32(ma_thread* pThread)
 
 static ma_result ma_mutex_init__win32(ma_mutex* pMutex)
 {
-    *pMutex = CreateEventA(NULL, FALSE, TRUE, NULL);
-    if (*pMutex == NULL) {
+    *MA_MUTEX_NATIVE(pMutex) = CreateEventA(NULL, FALSE, TRUE, NULL);
+    if (*MA_MUTEX_NATIVE(pMutex) == NULL) {
         return ma_result_from_GetLastError(GetLastError());
     }
 
@@ -18107,17 +18172,17 @@ static ma_result ma_mutex_init__win32(ma_mutex* pMutex)
 
 static void ma_mutex_uninit__win32(ma_mutex* pMutex)
 {
-    CloseHandle((HANDLE)*pMutex);
+    CloseHandle((HANDLE)*MA_MUTEX_NATIVE(pMutex));
 }
 
 static void ma_mutex_lock__win32(ma_mutex* pMutex)
 {
-    WaitForSingleObject((HANDLE)*pMutex, INFINITE);
+    WaitForSingleObject((HANDLE)*MA_MUTEX_NATIVE(pMutex), INFINITE);
 }
 
 static void ma_mutex_unlock__win32(ma_mutex* pMutex)
 {
-    SetEvent((HANDLE)*pMutex);
+    SetEvent((HANDLE)*MA_MUTEX_NATIVE(pMutex));
 }
 
 
@@ -18288,16 +18353,30 @@ static void ma_thread_wait(ma_thread* pThread)
 
 MA_API ma_result ma_mutex_init(ma_mutex* pMutex)
 {
+    ma_result result;
+
     if (pMutex == NULL) {
         MA_ASSERT(MA_FALSE);    /* Fire an assert so the caller is aware of this bug. */
         return MA_INVALID_ARGS;
     }
 
-#if defined(MA_POSIX)
-    return ma_mutex_init__posix(pMutex);
-#elif defined(MA_WIN32)
-    return ma_mutex_init__win32(pMutex);
+#if defined(TRACY_ENABLE)
+    pMutex->tracyCtx = NULL;
 #endif
+
+#if defined(MA_POSIX)
+    result = ma_mutex_init__posix(pMutex);
+#elif defined(MA_WIN32)
+    result = ma_mutex_init__win32(pMutex);
+#endif
+
+#if defined(TRACY_ENABLE)
+    if (result == MA_SUCCESS) {
+        TracyCLockAnnounce(pMutex->tracyCtx);
+    }
+#endif
+
+    return result;
 }
 
 MA_API void ma_mutex_uninit(ma_mutex* pMutex)
@@ -18305,6 +18384,13 @@ MA_API void ma_mutex_uninit(ma_mutex* pMutex)
     if (pMutex == NULL) {
         return;
     }
+
+#if defined(TRACY_ENABLE)
+    if (pMutex->tracyCtx != NULL) {
+        TracyCLockTerminate(pMutex->tracyCtx);
+        pMutex->tracyCtx = NULL;
+    }
+#endif
 
 #if defined(MA_POSIX)
     ma_mutex_uninit__posix(pMutex);
@@ -18320,11 +18406,15 @@ MA_API void ma_mutex_lock(ma_mutex* pMutex)
         return;
     }
 
+    TracyCLockBeforeLock(pMutex->tracyCtx);
+
 #if defined(MA_POSIX)
     ma_mutex_lock__posix(pMutex);
 #elif defined(MA_WIN32)
     ma_mutex_lock__win32(pMutex);
 #endif
+
+    TracyCLockAfterLock(pMutex->tracyCtx);
 }
 
 MA_API void ma_mutex_unlock(ma_mutex* pMutex)
@@ -18339,6 +18429,8 @@ MA_API void ma_mutex_unlock(ma_mutex* pMutex)
 #elif defined(MA_WIN32)
     ma_mutex_unlock__win32(pMutex);
 #endif
+
+    TracyCLockAfterUnlock(pMutex->tracyCtx);
 }
 
 
@@ -19305,6 +19397,13 @@ MA_API ma_result ma_job_queue_init_preallocated(const ma_job_queue_config* pConf
     pQueue->pJobs[ma_job_extract_slot(pQueue->head)].next = MA_JOB_ID_NONE;
     pQueue->tail = pQueue->head;
 
+    #if !defined(MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE) && defined(TRACY_ENABLE)
+    {
+        TracyCLockAnnounce(pQueue->lockTracyCtx);
+        TracyCLockCustomName(pQueue->lockTracyCtx, "ma_job_queue.lock", sizeof("ma_job_queue.lock") - 1);
+    }
+    #endif
+
     return MA_SUCCESS;
 }
 
@@ -19359,6 +19458,10 @@ MA_API void ma_job_queue_uninit(ma_job_queue* pQueue, const ma_allocation_callba
 
     ma_slot_allocator_uninit(&pQueue->allocator, pAllocationCallbacks);
 
+    #if !defined(MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE) && defined(TRACY_ENABLE)
+    TracyCLockTerminate(pQueue->lockTracyCtx);
+    #endif
+
     if (pQueue->_ownsHeap) {
         ma_free(pQueue->_pHeap, pAllocationCallbacks);
     }
@@ -19400,7 +19503,7 @@ MA_API ma_result ma_job_queue_post(ma_job_queue* pQueue, const ma_job* pJob)
     pQueue->pJobs[ma_job_extract_slot(slot)].next             = MA_JOB_ID_NONE;          /* Reset for safety. */
 
     #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
-    ma_spinlock_lock(&pQueue->lock);
+    ma_spinlock_lock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
     #endif
     {
         /* The job is stored in memory so now we need to add it to our linked list. We only ever add items to the end of the list. */
@@ -19421,7 +19524,7 @@ MA_API ma_result ma_job_queue_post(ma_job_queue* pQueue, const ma_job* pJob)
         ma_job_queue_cas(&pQueue->tail, tail, slot);
     }
     #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
-    ma_spinlock_unlock(&pQueue->lock);
+    ma_spinlock_unlock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
     #endif
 
 
@@ -19465,7 +19568,7 @@ MA_API ma_result ma_job_queue_next(ma_job_queue* pQueue, ma_job* pJob)
     }
 
     #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
-    ma_spinlock_lock(&pQueue->lock);
+    ma_spinlock_lock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
     #endif
     {
         /*
@@ -19487,7 +19590,7 @@ MA_API ma_result ma_job_queue_next(ma_job_queue* pQueue, ma_job* pJob)
                 if (ma_job_extract_slot(head) == ma_job_extract_slot(tail)) {
                     if (ma_job_extract_slot(next) == 0xFFFF) {
                         #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
-                        ma_spinlock_unlock(&pQueue->lock);
+                        ma_spinlock_unlock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
                         #endif
                         return MA_NO_DATA_AVAILABLE;
                     }
@@ -19502,7 +19605,7 @@ MA_API ma_result ma_job_queue_next(ma_job_queue* pQueue, ma_job* pJob)
         }
     }
     #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
-    ma_spinlock_unlock(&pQueue->lock);
+    ma_spinlock_unlock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
     #endif
 
     ma_slot_allocator_free(&pQueue->allocator, head);
@@ -24649,6 +24752,7 @@ static ma_result ma_device_init__wasapi(ma_device* pDevice, const ma_device_conf
     }
 
     ma_mutex_init(&pDevice->wasapi.rerouteLock);
+    MA_MUTEX_SET_NAME(&pDevice->wasapi.rerouteLock, "ma_device.wasapi.rerouteLock");
 
     hr = ma_CoCreateInstance(pDevice->pContext, &MA_CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL, &MA_IID_IMMDeviceEnumerator, (void**)&pDeviceEnumerator);
     if (FAILED(hr)) {
@@ -25397,6 +25501,8 @@ static ma_result ma_context_init__wasapi(ma_context* pContext, const ma_context_
         if (result != MA_SUCCESS) {
             return result;
         }
+
+        MA_MUTEX_SET_NAME(&pContext->wasapi.commandLock, "ma_context.wasapi.commandLock");
 
         result = ma_semaphore_init(0, &pContext->wasapi.commandSem);
         if (result != MA_SUCCESS) {
@@ -30456,6 +30562,8 @@ static ma_result ma_context_init__alsa(ma_context* pContext, const ma_context_co
         ma_log_postf(ma_context_get_log(pContext), MA_LOG_LEVEL_ERROR, "[ALSA] WARNING: Failed to initialize mutex for internal device enumeration.");
         return result;
     }
+
+    MA_MUTEX_SET_NAME(&pContext->alsa.internalDeviceEnumLock, "ma_context.alsa.internalDeviceEnumLock");
 
     pCallbacks->onContextInit             = ma_context_init__alsa;
     pCallbacks->onContextUninit           = ma_context_uninit__alsa;
@@ -35688,6 +35796,7 @@ static ma_result ma_context__init_device_tracking__coreaudio(ma_context* pContex
             propAddress.mElement  = AUDIO_OBJECT_PROPERTY_ELEMENT;
 
             ma_mutex_init(&g_DeviceTrackingMutex_CoreAudio);
+            MA_MUTEX_SET_NAME(&g_DeviceTrackingMutex_CoreAudio, "g_DeviceTrackingMutex_CoreAudio");
 
             propAddress.mSelector = kAudioHardwarePropertyDefaultInputDevice;
             ((ma_AudioObjectAddPropertyListener_proc)pContext->coreaudio.AudioObjectAddPropertyListener)(kAudioObjectSystemObject, &propAddress, &ma_default_device_changed__coreaudio, NULL);
@@ -40007,6 +40116,8 @@ static ma_result ma_device_init__aaudio(ma_device* pDevice, const ma_device_conf
         return result;
     }
 
+    MA_MUTEX_SET_NAME(&pDevice->aaudio.rerouteLock, "ma_device.aaudio.rerouteLock");
+
     return MA_SUCCESS;
 }
 
@@ -43591,10 +43702,14 @@ MA_API ma_result ma_context_init(const ma_backend backends[], ma_uint32 backendC
                 ma_log_postf(ma_context_get_log(pContext), MA_LOG_LEVEL_WARNING, "Failed to initialize mutex for device enumeration. ma_context_get_devices() is not thread safe.\n");
             }
 
+            MA_MUTEX_SET_NAME(&pContext->deviceEnumLock, "ma_context.deviceEnumLock");
+
             result = ma_mutex_init(&pContext->deviceInfoLock);
             if (result != MA_SUCCESS) {
                 ma_log_postf(ma_context_get_log(pContext), MA_LOG_LEVEL_WARNING, "Failed to initialize mutex for device info retrieval. ma_context_get_device_info() is not thread safe.\n");
             }
+
+            MA_MUTEX_SET_NAME(&pContext->deviceInfoLock, "ma_context.deviceInfoLock");
 
             ma_log_postf(ma_context_get_log(pContext), MA_LOG_LEVEL_DEBUG, "System Architecture:\n");
             ma_log_postf(ma_context_get_log(pContext), MA_LOG_LEVEL_DEBUG, "  Endian: %s\n", ma_is_little_endian() ? "LE"  : "BE");
@@ -43932,6 +44047,8 @@ MA_API ma_result ma_device_init(ma_context* pContext, const ma_device_config* pC
     if (result != MA_SUCCESS) {
         return result;
     }
+
+    MA_MUTEX_SET_NAME(&pDevice->startStopLock, "ma_device.startStopLock");
 
     /*
     When the device is started, the worker thread is the one that does the actual startup of the backend device. We
@@ -70396,6 +70513,8 @@ MA_API ma_result ma_resource_manager_init(const ma_resource_manager_config* pCon
                 return result;
             }
 
+            MA_MUTEX_SET_NAME(&pResourceManager->dataBufferBSTLock, "ma_resource_manager.dataBufferBSTLock");
+
             /* Create the job threads last to ensure the threads has access to valid data. */
             for (iJobThread = 0; iJobThread < pResourceManager->config.jobThreadCount; iJobThread += 1) {
                 result = ma_thread_create(&pResourceManager->jobThreads[iJobThread], ma_thread_priority_normal, pResourceManager->config.jobThreadStackSize, ma_resource_manager_job_thread, pResourceManager, &pResourceManager->config.allocationCallbacks);
@@ -78092,6 +78211,13 @@ MA_API ma_result ma_engine_init(const ma_engine_config* pConfig, ma_engine* pEng
     pEngine->inlinedSoundLock  = 0;
     pEngine->pInlinedSoundHead = NULL;
 
+    #if defined(TRACY_ENABLE)
+    {
+        TracyCLockAnnounce(pEngine->inlinedSoundLockTracyCtx);
+        TracyCLockCustomName(pEngine->inlinedSoundLockTracyCtx, "ma_engine.inlinedSoundLock", sizeof("ma_engine.inlinedSoundLock") - 1);
+    }
+    #endif
+
     /* Start the engine if required. This should always be the last step. */
     #if !defined(MA_NO_DEVICE_IO)
     {
@@ -78160,7 +78286,7 @@ MA_API void ma_engine_uninit(ma_engine* pEngine)
     All inlined sounds need to be deleted. I'm going to use a lock here just to future proof in case
     I want to do some kind of garbage collection later on.
     */
-    ma_spinlock_lock(&pEngine->inlinedSoundLock);
+    ma_spinlock_lock_tracked(&pEngine->inlinedSoundLock, pEngine->inlinedSoundLockTracyCtx);
     {
         for (;;) {
             ma_sound_inlined* pSoundToDelete = pEngine->pInlinedSoundHead;
@@ -78174,7 +78300,11 @@ MA_API void ma_engine_uninit(ma_engine* pEngine)
             ma_free(pSoundToDelete, &pEngine->allocationCallbacks);
         }
     }
-    ma_spinlock_unlock(&pEngine->inlinedSoundLock);
+    ma_spinlock_unlock_tracked(&pEngine->inlinedSoundLock, pEngine->inlinedSoundLockTracyCtx);
+
+    #if defined(TRACY_ENABLE)
+    TracyCLockTerminate(pEngine->inlinedSoundLockTracyCtx);
+    #endif
 
     for (iListener = 0; iListener < pEngine->listenerCount; iListener += 1) {
         ma_spatializer_listener_uninit(&pEngine->listeners[iListener], &pEngine->allocationCallbacks);
@@ -78604,7 +78734,7 @@ MA_API ma_result ma_engine_play_sound_ex(ma_engine* pEngine, const char* pFilePa
     simultaneously as we don't ever actually free the sound objects. Some kind of garbage
     collection routine might be valuable for this which I'll think about.
     */
-    ma_spinlock_lock(&pEngine->inlinedSoundLock);
+    ma_spinlock_lock_tracked(&pEngine->inlinedSoundLock, pEngine->inlinedSoundLockTracyCtx);
     {
         ma_uint32 soundFlags = 0;
 
@@ -78676,7 +78806,7 @@ MA_API ma_result ma_engine_play_sound_ex(ma_engine* pEngine, const char* pFilePa
             result = MA_OUT_OF_MEMORY;
         }
     }
-    ma_spinlock_unlock(&pEngine->inlinedSoundLock);
+    ma_spinlock_unlock_tracked(&pEngine->inlinedSoundLock, pEngine->inlinedSoundLockTracyCtx);
 
     if (result != MA_SUCCESS) {
         return result;
