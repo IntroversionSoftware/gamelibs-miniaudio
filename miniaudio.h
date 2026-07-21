@@ -19079,7 +19079,7 @@ MA_API ma_result ma_slot_allocator_alloc(ma_slot_allocator* pAllocator, ma_uint6
         }
 
         /* We weren't able to find a slot. If it's because we've reached our capacity we need to return MA_OUT_OF_MEMORY. Otherwise we need to do another iteration and try again. */
-        if (pAllocator->count < pAllocator->capacity) {
+        if (ma_atomic_load_explicit_32(&pAllocator->count, ma_atomic_memory_order_relaxed) < pAllocator->capacity) {   /* Atomic load: `count` is concurrently updated by other allocs/frees. */
             ma_yield();
         } else {
             return MA_OUT_OF_MEMORY;
@@ -19497,10 +19497,57 @@ MA_API ma_result ma_job_queue_post(ma_job_queue* pQueue, const ma_job* pJob)
     MA_ASSERT(ma_job_extract_slot(slot) < pQueue->capacity);
 
     /* We need to put the job into memory before we do anything. */
+    #if defined(MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE)
+    {
+        /*
+        The lock-free algorithm depends on every node's `next` word carrying a monotonically
+        increasing counter in its top 32 bits (see ma_job_queue_cas). A plain store of
+        MA_JOB_ID_NONE here would reset that counter and recreate the exact bit pattern a
+        stalled producer observed before this slot was recycled, allowing its append CAS to
+        succeed against the wrong queue generation (ABA) and silently lose the job it thinks
+        it posted. Therefore `next` must only ever be written through the counter-bumping CAS,
+        and the payload copy below must not touch it. The reset is done first so that any such
+        stale CAS is invalidated before this node is built and published.
+        */
+        ma_job* pDstJob = &pQueue->pJobs[ma_job_extract_slot(slot)];
+        ma_uint64 oldNext;
+        ma_job srcJob;
+        volatile ma_uint64* pDst64;
+        const ma_uint64* pSrc64;
+        size_t iChunk;
+        const size_t nextChunk = (size_t)((const char*)&pDstJob->next - (const char*)pDstJob) / 8;
+
+        MA_ASSERT((sizeof(ma_job) & 7) == 0);   /* ma_job contains ma_uint64 members, so this always holds. */
+
+        do {
+            oldNext = ma_atomic_load_64(&pDstJob->next);
+        } while (!ma_job_queue_cas(&pDstJob->next, oldNext, MA_JOB_ID_NONE));
+
+        /*
+        The payload is copied in 8-byte relaxed atomic chunks, skipping the `next` word, because a
+        stalled consumer holding a stale reference to this recycled slot may concurrently be copying
+        the old contents out (it will discard the result when its head CAS fails, but the accesses
+        still have to be atomic to be defined). Ordering is provided by the seq_cst publish CAS below.
+        */
+        srcJob = *pJob;
+        srcJob.toc.allocation   = slot;
+        srcJob.toc.breakup.code = pJob->toc.breakup.code;
+
+        pDst64 = (volatile ma_uint64*)pDstJob;
+        pSrc64 = (const ma_uint64*)&srcJob;
+        for (iChunk = 0; iChunk < sizeof(ma_job) / 8; iChunk += 1) {
+            if (iChunk == nextChunk) {
+                continue;   /* `next` is only ever written through the counter-bumping CAS. */
+            }
+            ma_atomic_store_explicit_64(&pDst64[iChunk], pSrc64[iChunk], ma_atomic_memory_order_relaxed);
+        }
+    }
+    #else
     pQueue->pJobs[ma_job_extract_slot(slot)]                  = *pJob;
     pQueue->pJobs[ma_job_extract_slot(slot)].toc.allocation   = slot;                    /* This will overwrite the job code. */
     pQueue->pJobs[ma_job_extract_slot(slot)].toc.breakup.code = pJob->toc.breakup.code;  /* The job code needs to be applied again because the line above overwrote it. */
     pQueue->pJobs[ma_job_extract_slot(slot)].next             = MA_JOB_ID_NONE;          /* Reset for safety. */
+    #endif
 
     #ifndef MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE
     ma_spinlock_lock_tracked(&pQueue->lock, pQueue->lockTracyCtx);
@@ -19596,7 +19643,27 @@ MA_API ma_result ma_job_queue_next(ma_job_queue* pQueue, ma_job* pJob)
                     }
                     ma_job_queue_cas(&pQueue->tail, tail, ma_job_extract_slot(next));
                 } else {
+                    #if defined(MA_USE_EXPERIMENTAL_LOCK_FREE_JOB_QUEUE)
+                    if (ma_job_extract_slot(next) == 0xFFFF) {
+                        continue;   /* Inconsistent snapshot: head != tail, but head's next reads as NONE (head moved under us). Retry. */
+                    }
+                    {
+                        /*
+                        Copy the job out in 8-byte relaxed atomic chunks rather than a plain struct copy. The
+                        slot may be concurrently recycled and rewritten by a producer, in which case whatever
+                        we copy here is discarded when the head CAS below fails — but the accesses themselves
+                        must be atomic to be defined. Ordering comes from the seq_cst load of `next` above.
+                        */
+                        const volatile ma_uint64* pSrc64 = (const volatile ma_uint64*)&pQueue->pJobs[ma_job_extract_slot(next)];
+                        ma_uint64* pDst64 = (ma_uint64*)pJob;
+                        size_t iChunk;
+                        for (iChunk = 0; iChunk < sizeof(ma_job) / 8; iChunk += 1) {
+                            pDst64[iChunk] = ma_atomic_load_explicit_64(&pSrc64[iChunk], ma_atomic_memory_order_relaxed);
+                        }
+                    }
+                    #else
                     *pJob = pQueue->pJobs[ma_job_extract_slot(next)];
+                    #endif
                     if (ma_job_queue_cas(&pQueue->head, head, ma_job_extract_slot(next))) {
                         break;
                     }
